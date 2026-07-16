@@ -54,6 +54,37 @@ public data class LooplineFeedback(
     public val updatedAt: String,
 )
 
+@Serializable
+public enum class LooplineRequestTarget {
+    @SerialName("ios")
+    IOS,
+
+    @SerialName("android")
+    ANDROID,
+
+    @SerialName("watchos")
+    WATCH_OS,
+}
+
+@Serializable
+public data class LooplineFeatureRequest(
+    public val id: String,
+    public val title: String,
+    public val description: String,
+    public val votes: Int,
+    public val target: LooplineRequestTarget,
+    public val status: String,
+    public val voted: Boolean,
+    public val updatedAt: String,
+)
+
+@Serializable
+public data class LooplineVoteResult(
+    public val feedbackId: String,
+    public val votes: Int,
+    public val voted: Boolean,
+)
+
 public data class LooplineConfiguration(
     public val baseUrl: String,
     public val projectKey: String,
@@ -74,27 +105,77 @@ public sealed class LooplineException(message: String, cause: Throwable? = null)
     ) : LooplineException(message)
 }
 
-public class LooplineClient internal constructor(
-    private val submissionHandler: suspend (LooplineFeedbackSubmission, String) -> LooplineFeedback,
+public class LooplineClient private constructor(
+    private val handlers: LooplineHandlers,
 ) {
+    internal constructor(
+        submissionHandler: suspend (LooplineFeedbackSubmission, String) -> LooplineFeedback,
+    ) : this(
+        LooplineHandlers(
+            submit = submissionHandler,
+            requests = { emptyList() },
+            setVote = { _, _, _ ->
+                throw LooplineException.InvalidConfiguration("This Loopline client does not support voting.")
+            },
+        ),
+    )
+
+    internal constructor(
+        submissionHandler: suspend (LooplineFeedbackSubmission, String) -> LooplineFeedback,
+        requestListHandler: suspend (String?) -> List<LooplineFeatureRequest>,
+        voteHandler: suspend (String, Boolean, String) -> LooplineVoteResult,
+    ) : this(
+        LooplineHandlers(
+            submit = submissionHandler,
+            requests = requestListHandler,
+            setVote = voteHandler,
+        ),
+    )
+
     public constructor(configuration: LooplineConfiguration) : this(
-        configuration = configuration,
-        connectionFactory = { url -> url.openConnection() as HttpURLConnection },
+        createHandlers(configuration) { url -> url.openConnection() as HttpURLConnection },
     )
 
     internal constructor(
         configuration: LooplineConfiguration,
         connectionFactory: (URL) -> HttpURLConnection,
-    ) : this(
-        submissionHandler = LooplineHTTPTransport(configuration, connectionFactory)::submit,
-    )
+    ) : this(createHandlers(configuration, connectionFactory))
 
     @JvmOverloads
     public suspend fun submit(
         submission: LooplineFeedbackSubmission,
         idempotencyKey: String = UUID.randomUUID().toString(),
-    ): LooplineFeedback = submissionHandler(submission, idempotencyKey)
+    ): LooplineFeedback = handlers.submit(submission, idempotencyKey)
+
+    public suspend fun requests(externalUserId: String? = null): List<LooplineFeatureRequest> =
+        handlers.requests(externalUserId)
+
+    public suspend fun setVote(
+        requestId: String,
+        voted: Boolean,
+        externalUserId: String,
+    ): LooplineVoteResult = handlers.setVote(requestId, voted, externalUserId)
+
+    private companion object {
+        fun createHandlers(
+            configuration: LooplineConfiguration,
+            connectionFactory: (URL) -> HttpURLConnection,
+        ): LooplineHandlers {
+            val transport = LooplineHTTPTransport(configuration, connectionFactory)
+            return LooplineHandlers(
+                submit = transport::submit,
+                requests = transport::requests,
+                setVote = transport::setVote,
+            )
+        }
+    }
 }
+
+private data class LooplineHandlers(
+    val submit: suspend (LooplineFeedbackSubmission, String) -> LooplineFeedback,
+    val requests: suspend (String?) -> List<LooplineFeatureRequest>,
+    val setVote: suspend (String, Boolean, String) -> LooplineVoteResult,
+)
 
 private class LooplineHTTPTransport(
     private val configuration: LooplineConfiguration,
@@ -159,7 +240,73 @@ private class LooplineHTTPTransport(
         }
     }
 
-    private fun endpointURL(): URL {
+    suspend fun requests(externalUserId: String?): List<LooplineFeatureRequest> = withContext(Dispatchers.IO) {
+        val connection = connectionFactory(endpointURL("requests?platform=android"))
+        try {
+            connection.requestMethod = "GET"
+            configureConnection(connection)
+            normalizedUserId(externalUserId)?.let {
+                connection.setRequestProperty("X-Loopline-User", it)
+            }
+            val responseBody = responseBody(connection)
+            try {
+                json.decodeFromString<LooplineRequestsEnvelope>(responseBody).requests
+            } catch (error: SerializationException) {
+                throw LooplineException.InvalidResponse("Loopline returned an unreadable response.", error)
+            }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    suspend fun setVote(
+        requestId: String,
+        voted: Boolean,
+        externalUserId: String,
+    ): LooplineVoteResult = withContext(Dispatchers.IO) {
+        val userId = normalizedUserId(externalUserId)
+            ?: throw LooplineException.InvalidConfiguration("A stable user ID is required for voting.")
+        val encodedRequestId = URLEncoder
+            .encode(requestId, StandardCharsets.UTF_8.toString())
+            .replace("+", "%20")
+        val connection = connectionFactory(endpointURL("requests/$encodedRequestId/vote?platform=android"))
+        try {
+            connection.requestMethod = if (voted) "POST" else "DELETE"
+            configureConnection(connection)
+            connection.setRequestProperty("X-Loopline-User", userId)
+            val responseBody = responseBody(connection)
+            try {
+                json.decodeFromString<LooplineVoteResult>(responseBody)
+            } catch (error: SerializationException) {
+                throw LooplineException.InvalidResponse("Loopline returned an unreadable response.", error)
+            }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun configureConnection(connection: HttpURLConnection) {
+        connection.connectTimeout = configuration.connectTimeoutMillis
+        connection.readTimeout = configuration.readTimeoutMillis
+        connection.setRequestProperty("Accept", "application/json")
+    }
+
+    private fun responseBody(connection: HttpURLConnection): String {
+        val statusCode = connection.responseCode
+        val stream = if (statusCode in 200..299) connection.inputStream else connection.errorStream
+        val responseBody = stream?.bufferedReader(StandardCharsets.UTF_8)?.use { it.readText() }.orEmpty()
+        if (statusCode !in 200..299) {
+            val message = runCatching {
+                json.decodeFromString<LooplineErrorEnvelope>(responseBody).error.message
+            }.getOrNull() ?: "Loopline returned HTTP $statusCode."
+            throw LooplineException.Server(statusCode, message)
+        }
+        return responseBody
+    }
+
+    private fun normalizedUserId(value: String?): String? = value?.trim()?.takeIf { it.isNotEmpty() }
+
+    private fun endpointURL(path: String = "feedback"): URL {
         val baseUrl = configuration.baseUrl.trim().trimEnd('/')
         val projectKey = configuration.projectKey.trim()
         val source = configuration.source.trim()
@@ -183,7 +330,7 @@ private class LooplineHTTPTransport(
         val encodedKey = URLEncoder
             .encode(projectKey, StandardCharsets.UTF_8.toString())
             .replace("+", "%20")
-        return URL("$baseUrl/v1/projects/$encodedKey/feedback")
+        return URL("$baseUrl/v1/projects/$encodedKey/$path")
     }
 }
 
@@ -201,6 +348,11 @@ private data class LooplineIngestionPayload(
 @Serializable
 private data class LooplineFeedbackEnvelope(
     val feedback: LooplineFeedback,
+)
+
+@Serializable
+private data class LooplineRequestsEnvelope(
+    val requests: List<LooplineFeatureRequest>,
 )
 
 @Serializable

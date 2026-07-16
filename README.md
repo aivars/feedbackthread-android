@@ -1,6 +1,6 @@
 # Loopline Android SDK
 
-The private-alpha Android SDK provides an async Kotlin ingestion client and a native Compose feedback screen. It targets minSdk 26 and matches Apnea Android's current Kotlin 2.1, AGP 8.7, Gradle 8.11, and Compose toolchain.
+The private-alpha Android SDK provides an async Kotlin client plus native Compose feedback and feature-request screens. It targets minSdk 26 and matches Apnea Android's current Kotlin 2.1, AGP 8.7, Gradle 8.11, and Compose toolchain.
 
 ## Add the local SDK to Apnea
 
@@ -30,7 +30,20 @@ val loopline = LooplineClient(
 )
 ```
 
-Provide `LOOPLINE_PROJECT_KEY` through a local Gradle property and expose it as a `BuildConfig` field. It is an ingestion-only app credential: it can create feedback but cannot read or change the dashboard.
+Provide `LOOPLINE_PROJECT_KEY` through a local Gradle property and expose it as a `BuildConfig` field. It is an app credential: it can submit feedback, read the moderated Android request feed, and vote, but cannot read or change the private dashboard.
+
+## Show the feature-request list
+
+```kotlin
+LooplineFeatureRequestScreen(
+    client = loopline,
+    externalUserId = signedInUserId,
+    onAddRequest = openFeedbackForm,
+    onDismiss = onBack,
+)
+```
+
+The Android SDK requests only Android-visible features. Apple Watch requests never appear. If the app has no account ID, the screen stores a random anonymous voter ID in app preferences.
 
 ## Show the feedback screen
 

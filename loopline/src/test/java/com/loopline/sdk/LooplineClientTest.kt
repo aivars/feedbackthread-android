@@ -74,6 +74,61 @@ public class LooplineClientTest {
     }
 
     @Test
+    public fun loadsAndroidRequestFeedWithVoterIdentity(): Unit = runBlocking {
+        lateinit var connection: FakeHttpURLConnection
+        val client = LooplineClient(
+            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url ->
+                FakeHttpURLConnection(url, 200, requestsResponse).also { connection = it }
+            },
+        )
+
+        val requests = client.requests("user-123")
+
+        assertEquals("GET", connection.requestMethod)
+        assertEquals(
+            "https://example.com/v1/projects/project-key/requests?platform=android",
+            connection.url.toString(),
+        )
+        assertEquals("user-123", connection.getRequestProperty("X-Loopline-User"))
+        assertEquals(1, requests.size)
+        assertEquals("FDBK-request", requests.first().id)
+        assertEquals(LooplineRequestTarget.ANDROID, requests.first().target)
+        assertTrue(requests.first().voted)
+    }
+
+    @Test
+    public fun addsAndRemovesAndroidVotes(): Unit = runBlocking {
+        val connections = mutableListOf<FakeHttpURLConnection>()
+        val client = LooplineClient(
+            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url ->
+                val removing = connections.isNotEmpty()
+                FakeHttpURLConnection(
+                    url,
+                    200,
+                    if (removing) removedVoteResponse else addedVoteResponse,
+                ).also(connections::add)
+            },
+        )
+
+        val added = client.setVote("FDBK-request", true, "user-123")
+        val removed = client.setVote("FDBK-request", false, "user-123")
+
+        assertEquals("POST", connections[0].requestMethod)
+        assertEquals("DELETE", connections[1].requestMethod)
+        assertEquals(
+            "https://example.com/v1/projects/project-key/requests/FDBK-request/vote?platform=android",
+            connections[0].url.toString(),
+        )
+        assertEquals("user-123", connections[0].getRequestProperty("X-Loopline-User"))
+        assertTrue(added.voted)
+        assertEquals(13, added.votes)
+        assertTrue(!removed.voted)
+        assertEquals(12, removed.votes)
+    }
+
+    @Test
     public fun rejectsEmptyProjectKeyBeforeSending(): Unit = runBlocking {
         val client = LooplineClient(
             LooplineConfiguration("https://example.com", "  ", "android"),
@@ -108,6 +163,9 @@ public class LooplineClientTest {
         assertEquals("android", feedback.source)
         assertEquals("Android SDK live integration test", feedback.title)
         assertEquals("Open", feedback.status)
+
+        val requests = client.requests("android-live-reader")
+        assertTrue(requests.isNotEmpty())
     }
 
     private companion object {
@@ -130,6 +188,28 @@ public class LooplineClientTest {
               }
             }
         """.trimIndent()
+
+        val requestsResponse: String = """
+            {
+              "requests": [
+                {
+                  "id": "FDBK-request",
+                  "title": "More training plans",
+                  "description": "Add a longer progression for experienced users.",
+                  "votes": 12,
+                  "target": "android",
+                  "status": "Planned",
+                  "voted": true,
+                  "updatedAt": "2026-07-16T12:00:00.000Z"
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val addedVoteResponse: String =
+            """{"feedbackId":"FDBK-request","votes":13,"voted":true}"""
+        val removedVoteResponse: String =
+            """{"feedbackId":"FDBK-request","votes":12,"voted":false}"""
     }
 }
 
