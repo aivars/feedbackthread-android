@@ -43,6 +43,8 @@ LooplineFeatureRequestScreen(
 )
 ```
 
+The list is moderated: Open and Rejected requests stay in the developer dashboard. App users can filter approved requests by In review, Planned, In progress, and Completed. Submitted requests appear only after approval.
+
 The Android SDK requests only Android-visible features. Apple Watch requests never appear. If the app has no account ID, the screen stores a random anonymous voter ID in app preferences.
 
 ## Show the feedback screen

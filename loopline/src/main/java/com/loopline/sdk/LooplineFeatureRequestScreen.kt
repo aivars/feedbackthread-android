@@ -1,8 +1,10 @@
 package com.loopline.sdk
 
 import android.content.Context
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,11 +12,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -26,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +54,29 @@ private sealed interface RequestLoadPhase {
     data class Failed(val message: String) : RequestLoadPhase
 }
 
+private enum class RequestFilter(val title: String) {
+    ALL("All"),
+    IN_REVIEW("In review"),
+    PLANNED("Planned"),
+    IN_PROGRESS("In progress"),
+    COMPLETED("Completed");
+
+    fun includes(status: String): Boolean = when (this) {
+        ALL -> status.publicRequestFilter() != null
+        else -> status.publicRequestFilter() == this
+    }
+}
+
+private fun String.publicRequestFilter(): RequestFilter? = when (this) {
+    "Under review" -> RequestFilter.IN_REVIEW
+    "Planned" -> RequestFilter.PLANNED
+    "In progress", "Ready to release" -> RequestFilter.IN_PROGRESS
+    "Released" -> RequestFilter.COMPLETED
+    else -> null
+}
+
+private fun String.publicRequestLabel(): String = publicRequestFilter()?.title ?: this
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 public fun LooplineFeatureRequestScreen(
@@ -60,7 +93,10 @@ public fun LooplineFeatureRequestScreen(
     var requests by remember { mutableStateOf<List<LooplineFeatureRequest>>(emptyList()) }
     var phase by remember { mutableStateOf<RequestLoadPhase>(RequestLoadPhase.Loading) }
     var votingIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var selectedFilter by rememberSaveable { mutableStateOf(RequestFilter.ALL) }
     val scope = rememberCoroutineScope()
+    val visibleRequests = requests.filter { RequestFilter.ALL.includes(it.status) }
+    val filteredRequests = visibleRequests.filter { selectedFilter.includes(it.status) }
 
     suspend fun loadRequests() {
         if (requests.isEmpty()) phase = RequestLoadPhase.Loading
@@ -86,10 +122,12 @@ public fun LooplineFeatureRequestScreen(
                 navigationIcon = {
                     TextButton(onClick = onDismiss) { Text("Done") }
                 },
-                actions = {
-                    TextButton(onClick = onAddRequest) { Text("Add request") }
-                },
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onAddRequest) {
+                Icon(Icons.Default.Add, contentDescription = "Add request")
+            }
         },
     ) { contentPadding ->
         when {
@@ -111,10 +149,10 @@ public fun LooplineFeatureRequestScreen(
                 )
             }
 
-            requests.isEmpty() -> {
+            visibleRequests.isEmpty() -> {
                 RequestMessage(
-                    title = "No feature requests yet",
-                    message = "Be the first to share an idea.",
+                    title = "No approved requests yet",
+                    message = "Share an idea and it will appear after review.",
                     actionTitle = "Add request",
                     onAction = onAddRequest,
                     modifier = Modifier.padding(contentPadding),
@@ -122,56 +160,82 @@ public fun LooplineFeatureRequestScreen(
             }
 
             else -> {
-                LazyColumn(
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(contentPadding),
                 ) {
-                    if (phase is RequestLoadPhase.Failed) {
-                        item {
-                            Text(
-                                text = (phase as RequestLoadPhase.Failed).message,
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(
+                            horizontal = 16.dp,
+                            vertical = 8.dp,
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(RequestFilter.entries, key = { it.name }) { filter ->
+                            FilterChip(
+                                selected = selectedFilter == filter,
+                                onClick = { selectedFilter = filter },
+                                label = {
+                                    Text("${filter.title} (${visibleRequests.count { filter.includes(it.status) }})")
+                                },
                             )
                         }
                     }
-                    items(requests, key = { it.id }) { request ->
-                        FeatureRequestRow(
-                            request = request,
-                            isVoting = request.id in votingIds,
-                            onVote = {
-                                if (request.id !in votingIds) {
-                                    votingIds = votingIds + request.id
-                                    scope.launch {
-                                        try {
-                                            val result = client.setVote(
-                                                requestId = request.id,
-                                                voted = !request.voted,
-                                                externalUserId = voterId,
-                                            )
-                                            requests = requests.map { current ->
-                                                if (current.id == result.feedbackId) {
-                                                    current.copy(votes = result.votes, voted = result.voted)
-                                                } else {
-                                                    current
+                    if (phase is RequestLoadPhase.Failed) {
+                        Text(
+                            text = (phase as RequestLoadPhase.Failed).message,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    if (filteredRequests.isEmpty()) {
+                        RequestMessage(
+                            title = "No ${selectedFilter.title.lowercase()} requests",
+                            message = "Choose another status to see more requests.",
+                            modifier = Modifier.weight(1f),
+                        )
+                    } else {
+                        LazyColumn(modifier = Modifier.weight(1f)) {
+                            items(filteredRequests, key = { it.id }) { request ->
+                                FeatureRequestRow(
+                                    request = request,
+                                    isVoting = request.id in votingIds,
+                                    onVote = {
+                                        if (request.id !in votingIds) {
+                                            votingIds = votingIds + request.id
+                                            scope.launch {
+                                                try {
+                                                    val result = client.setVote(
+                                                        requestId = request.id,
+                                                        voted = !request.voted,
+                                                        externalUserId = voterId,
+                                                    )
+                                                    requests = requests.map { current ->
+                                                        if (current.id == result.feedbackId) {
+                                                            current.copy(votes = result.votes, voted = result.voted)
+                                                        } else {
+                                                            current
+                                                        }
+                                                    }
+                                                } catch (error: CancellationException) {
+                                                    throw error
+                                                } catch (error: Exception) {
+                                                    phase = RequestLoadPhase.Failed(
+                                                        error.message ?: "Your vote could not be saved.",
+                                                    )
+                                                } finally {
+                                                    votingIds = votingIds - request.id
                                                 }
                                             }
-                                        } catch (error: CancellationException) {
-                                            throw error
-                                        } catch (error: Exception) {
-                                            phase = RequestLoadPhase.Failed(
-                                                error.message ?: "Your vote could not be saved.",
-                                            )
-                                        } finally {
-                                            votingIds = votingIds - request.id
                                         }
-                                    }
-                                }
-                            },
-                        )
-                        HorizontalDivider()
+                                    },
+                                )
+                                HorizontalDivider()
+                            }
+                        }
                     }
                 }
             }
@@ -185,6 +249,13 @@ private fun FeatureRequestRow(
     isVoting: Boolean,
     onVote: () -> Unit,
 ) {
+    val statusColor = when (request.status.publicRequestFilter()) {
+        RequestFilter.IN_REVIEW -> MaterialTheme.colorScheme.tertiary
+        RequestFilter.PLANNED -> MaterialTheme.colorScheme.secondary
+        RequestFilter.IN_PROGRESS -> MaterialTheme.colorScheme.primary
+        RequestFilter.COMPLETED -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -216,13 +287,12 @@ private fun FeatureRequestRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = request.status,
+                text = request.status.publicRequestLabel(),
+                modifier = Modifier
+                    .background(statusColor.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
                 style = MaterialTheme.typography.labelMedium,
-                color = if (request.status in setOf("Released", "Closed")) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                color = statusColor,
             )
         }
     }
@@ -299,6 +369,16 @@ private fun LooplineFeatureRequestScreenPreview() {
             status = "Planned",
             voted = false,
             updatedAt = "2026-07-15T12:00:00.000Z",
+        ),
+        LooplineFeatureRequest(
+            id = "FDBK-3",
+            title = "Health integration",
+            description = "Include completed sessions in Health Connect.",
+            votes = 9,
+            target = LooplineRequestTarget.ANDROID,
+            status = "Released",
+            voted = false,
+            updatedAt = "2026-07-14T12:00:00.000Z",
         ),
     )
     MaterialTheme {

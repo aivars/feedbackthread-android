@@ -83,10 +83,17 @@ public fun LooplineFeedbackScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text("Feedback sent", style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    if (kind == LooplineFeedbackKind.REQUEST) "Request submitted for review" else "Feedback sent",
+                    style = MaterialTheme.typography.headlineSmall,
+                )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Thank you for helping us improve the app.",
+                    if (kind == LooplineFeedbackKind.REQUEST) {
+                        "It will appear in the feature list after it is approved."
+                    } else {
+                        "Thank you for helping us improve the app."
+                    },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(24.dp))
