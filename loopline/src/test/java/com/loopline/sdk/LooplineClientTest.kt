@@ -90,7 +90,7 @@ public class LooplineClientTest {
             "https://example.com/v1/projects/project-key/requests?platform=android",
             connection.url.toString(),
         )
-        assertEquals("user-123", connection.getRequestProperty("X-Loopline-User"))
+        assertEquals("user-123", connection.getRequestProperty("X-FeedbackThread-User"))
         assertEquals(1, requests.size)
         assertEquals("FDBK-request", requests.first().id)
         assertEquals(LooplineRequestTarget.ANDROID, requests.first().target)
@@ -121,7 +121,7 @@ public class LooplineClientTest {
             "https://example.com/v1/projects/project-key/requests/FDBK-request/vote?platform=android",
             connections[0].url.toString(),
         )
-        assertEquals("user-123", connections[0].getRequestProperty("X-Loopline-User"))
+        assertEquals("user-123", connections[0].getRequestProperty("X-FeedbackThread-User"))
         assertTrue(added.voted)
         assertEquals(13, added.votes)
         assertTrue(!removed.voted)
@@ -138,14 +138,18 @@ public class LooplineClientTest {
             client.submit(LooplineFeedbackSubmission(LooplineFeedbackKind.BUG, "Crash", "It crashed."))
             fail("Expected an invalid configuration error")
         } catch (error: LooplineException.InvalidConfiguration) {
-            assertEquals("A Loopline project key is required.", error.message)
+            assertEquals("A FeedbackThread project key is required.", error.message)
         }
     }
 
     @Test
     public fun submitsThroughLiveStagingWhenConfigured(): Unit = runBlocking {
-        val baseURL = System.getenv("LOOPLINE_LIVE_BASE_URL") ?: return@runBlocking
-        val projectKey = System.getenv("LOOPLINE_LIVE_PROJECT_KEY") ?: return@runBlocking
+        val baseURL = System.getenv("FEEDBACKTHREAD_LIVE_BASE_URL")
+            ?: System.getenv("LOOPLINE_LIVE_BASE_URL")
+            ?: return@runBlocking
+        val projectKey = System.getenv("FEEDBACKTHREAD_LIVE_PROJECT_KEY")
+            ?: System.getenv("LOOPLINE_LIVE_PROJECT_KEY")
+            ?: return@runBlocking
         val client = LooplineClient(
             LooplineConfiguration(baseURL, projectKey, "android"),
         )

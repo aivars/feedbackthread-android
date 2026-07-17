@@ -115,7 +115,7 @@ public class LooplineClient private constructor(
             submit = submissionHandler,
             requests = { emptyList() },
             setVote = { _, _, _ ->
-                throw LooplineException.InvalidConfiguration("This Loopline client does not support voting.")
+                throw LooplineException.InvalidConfiguration("This FeedbackThread client does not support voting.")
             },
         ),
     )
@@ -222,19 +222,19 @@ private class LooplineHTTPTransport(
             if (statusCode !in 200..299) {
                 val message = runCatching {
                     json.decodeFromString<LooplineErrorEnvelope>(responseBody).error.message
-                }.getOrNull() ?: "Loopline returned HTTP $statusCode."
+                }.getOrNull() ?: "FeedbackThread returned HTTP $statusCode."
                 throw LooplineException.Server(statusCode, message)
             }
 
             try {
                 json.decodeFromString<LooplineFeedbackEnvelope>(responseBody).feedback
             } catch (error: SerializationException) {
-                throw LooplineException.InvalidResponse("Loopline returned an unreadable response.", error)
+                throw LooplineException.InvalidResponse("FeedbackThread returned an unreadable response.", error)
             }
         } catch (error: LooplineException) {
             throw error
         } catch (error: IOException) {
-            throw LooplineException.InvalidResponse("Could not reach Loopline.", error)
+            throw LooplineException.InvalidResponse("Could not reach FeedbackThread.", error)
         } finally {
             connection.disconnect()
         }
@@ -246,13 +246,13 @@ private class LooplineHTTPTransport(
             connection.requestMethod = "GET"
             configureConnection(connection)
             normalizedUserId(externalUserId)?.let {
-                connection.setRequestProperty("X-Loopline-User", it)
+                connection.setRequestProperty("X-FeedbackThread-User", it)
             }
             val responseBody = responseBody(connection)
             try {
                 json.decodeFromString<LooplineRequestsEnvelope>(responseBody).requests
             } catch (error: SerializationException) {
-                throw LooplineException.InvalidResponse("Loopline returned an unreadable response.", error)
+                throw LooplineException.InvalidResponse("FeedbackThread returned an unreadable response.", error)
             }
         } finally {
             connection.disconnect()
@@ -273,12 +273,12 @@ private class LooplineHTTPTransport(
         try {
             connection.requestMethod = if (voted) "POST" else "DELETE"
             configureConnection(connection)
-            connection.setRequestProperty("X-Loopline-User", userId)
+            connection.setRequestProperty("X-FeedbackThread-User", userId)
             val responseBody = responseBody(connection)
             try {
                 json.decodeFromString<LooplineVoteResult>(responseBody)
             } catch (error: SerializationException) {
-                throw LooplineException.InvalidResponse("Loopline returned an unreadable response.", error)
+                throw LooplineException.InvalidResponse("FeedbackThread returned an unreadable response.", error)
             }
         } finally {
             connection.disconnect()
@@ -298,7 +298,7 @@ private class LooplineHTTPTransport(
         if (statusCode !in 200..299) {
             val message = runCatching {
                 json.decodeFromString<LooplineErrorEnvelope>(responseBody).error.message
-            }.getOrNull() ?: "Loopline returned HTTP $statusCode."
+            }.getOrNull() ?: "FeedbackThread returned HTTP $statusCode."
             throw LooplineException.Server(statusCode, message)
         }
         return responseBody
@@ -312,19 +312,19 @@ private class LooplineHTTPTransport(
         val source = configuration.source.trim()
 
         if (projectKey.isEmpty()) {
-            throw LooplineException.InvalidConfiguration("A Loopline project key is required.")
+            throw LooplineException.InvalidConfiguration("A FeedbackThread project key is required.")
         }
         if (source.isEmpty()) {
-            throw LooplineException.InvalidConfiguration("A Loopline source is required.")
+            throw LooplineException.InvalidConfiguration("A FeedbackThread source is required.")
         }
 
         val baseURI = try {
             URI(baseUrl)
         } catch (error: Exception) {
-            throw LooplineException.InvalidConfiguration("The Loopline base URL is invalid.")
+            throw LooplineException.InvalidConfiguration("The FeedbackThread base URL is invalid.")
         }
         if (baseURI.scheme !in setOf("http", "https") || baseURI.host.isNullOrBlank()) {
-            throw LooplineException.InvalidConfiguration("The Loopline base URL must use HTTP or HTTPS.")
+            throw LooplineException.InvalidConfiguration("The FeedbackThread base URL must use HTTP or HTTPS.")
         }
 
         val encodedKey = URLEncoder

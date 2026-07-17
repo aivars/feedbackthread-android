@@ -1,7 +1,9 @@
 package com.loopline.sdk
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,8 +11,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -44,6 +48,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import java.util.UUID
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.launch
@@ -94,9 +100,11 @@ public fun LooplineFeatureRequestScreen(
     var phase by remember { mutableStateOf<RequestLoadPhase>(RequestLoadPhase.Loading) }
     var votingIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var selectedFilter by rememberSaveable { mutableStateOf(RequestFilter.ALL) }
+    var selectedRequestId by rememberSaveable { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val visibleRequests = requests.filter { RequestFilter.ALL.includes(it.status) }
     val filteredRequests = visibleRequests.filter { selectedFilter.includes(it.status) }
+    val selectedRequest = visibleRequests.firstOrNull { it.id == selectedRequestId }
 
     suspend fun loadRequests() {
         if (requests.isEmpty()) phase = RequestLoadPhase.Loading
@@ -114,23 +122,77 @@ public fun LooplineFeatureRequestScreen(
         loadRequests()
     }
 
+    LaunchedEffect(selectedRequestId, visibleRequests) {
+        if (selectedRequestId != null && selectedRequest == null && requests.isNotEmpty()) {
+            selectedRequestId = null
+        }
+    }
+
+    BackHandler(enabled = selectedRequest != null) {
+        selectedRequestId = null
+    }
+
+    val toggleVote: (LooplineFeatureRequest) -> Unit = { request ->
+        if (request.id !in votingIds) {
+            votingIds = votingIds + request.id
+            scope.launch {
+                try {
+                    val result = client.setVote(
+                        requestId = request.id,
+                        voted = !request.voted,
+                        externalUserId = voterId,
+                    )
+                    requests = requests.map { current ->
+                        if (current.id == result.feedbackId) {
+                            current.copy(votes = result.votes, voted = result.voted)
+                        } else {
+                            current
+                        }
+                    }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    phase = RequestLoadPhase.Failed(
+                        error.message ?: "Your vote could not be saved.",
+                    )
+                } finally {
+                    votingIds = votingIds - request.id
+                }
+            }
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Feature requests") },
+                title = { Text(if (selectedRequest == null) "Feature requests" else "Request") },
                 navigationIcon = {
-                    TextButton(onClick = onDismiss) { Text("Done") }
+                    if (selectedRequest == null) {
+                        TextButton(onClick = onDismiss) { Text("Done") }
+                    } else {
+                        TextButton(onClick = { selectedRequestId = null }) { Text("Back") }
+                    }
                 },
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddRequest) {
-                Icon(Icons.Default.Add, contentDescription = "Add request")
+            if (selectedRequest == null) {
+                FloatingActionButton(onClick = onAddRequest) {
+                    Icon(Icons.Default.Add, contentDescription = "Add request")
+                }
             }
         },
     ) { contentPadding ->
-        when {
+        if (selectedRequest != null) {
+            FeatureRequestDetail(
+                request = selectedRequest,
+                isVoting = selectedRequest.id in votingIds,
+                errorMessage = (phase as? RequestLoadPhase.Failed)?.message,
+                onVote = { toggleVote(selectedRequest) },
+                modifier = Modifier.padding(contentPadding),
+            )
+        } else when {
             phase is RequestLoadPhase.Loading && requests.isEmpty() -> {
                 RequestMessage(
                     title = "Loading requests…",
@@ -203,35 +265,8 @@ public fun LooplineFeatureRequestScreen(
                                 FeatureRequestRow(
                                     request = request,
                                     isVoting = request.id in votingIds,
-                                    onVote = {
-                                        if (request.id !in votingIds) {
-                                            votingIds = votingIds + request.id
-                                            scope.launch {
-                                                try {
-                                                    val result = client.setVote(
-                                                        requestId = request.id,
-                                                        voted = !request.voted,
-                                                        externalUserId = voterId,
-                                                    )
-                                                    requests = requests.map { current ->
-                                                        if (current.id == result.feedbackId) {
-                                                            current.copy(votes = result.votes, voted = result.voted)
-                                                        } else {
-                                                            current
-                                                        }
-                                                    }
-                                                } catch (error: CancellationException) {
-                                                    throw error
-                                                } catch (error: Exception) {
-                                                    phase = RequestLoadPhase.Failed(
-                                                        error.message ?: "Your vote could not be saved.",
-                                                    )
-                                                } finally {
-                                                    votingIds = votingIds - request.id
-                                                }
-                                            }
-                                        }
-                                    },
+                                    onVote = { toggleVote(request) },
+                                    onOpen = { selectedRequestId = request.id },
                                 )
                                 HorizontalDivider()
                             }
@@ -248,30 +283,26 @@ private fun FeatureRequestRow(
     request: LooplineFeatureRequest,
     isVoting: Boolean,
     onVote: () -> Unit,
+    onOpen: () -> Unit,
 ) {
-    val statusColor = when (request.status.publicRequestFilter()) {
-        RequestFilter.IN_REVIEW -> MaterialTheme.colorScheme.tertiary
-        RequestFilter.PLANNED -> MaterialTheme.colorScheme.secondary
-        RequestFilter.IN_PROGRESS -> MaterialTheme.colorScheme.primary
-        RequestFilter.COMPLETED -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        TextButton(onClick = onVote, enabled = !isVoting) {
-            if (isVoting) {
-                CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.width(18.dp))
-            } else {
-                Text(if (request.voted) "▲ ${request.votes}" else "△ ${request.votes}")
-            }
-        }
+        FeatureRequestVoteButton(
+            votes = request.votes,
+            isVoted = request.voted,
+            isVoting = isVoting,
+            onVote = onVote,
+        )
         Spacer(Modifier.width(8.dp))
         Column(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .clickable(onClick = onOpen)
+                .padding(vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             Text(
@@ -286,16 +317,117 @@ private fun FeatureRequestRow(
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
+            FeatureRequestStatusBadge(request.status)
+        }
+    }
+}
+
+@Composable
+private fun FeatureRequestDetail(
+    request: LooplineFeatureRequest,
+    isVoting: Boolean,
+    errorMessage: String?,
+    onVote: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        item {
             Text(
-                text = request.status.publicRequestLabel(),
-                modifier = Modifier
-                    .background(statusColor.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-                style = MaterialTheme.typography.labelMedium,
-                color = statusColor,
+                text = request.title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        item {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                FeatureRequestVoteButton(
+                    votes = request.votes,
+                    isVoted = request.voted,
+                    isVoting = isVoting,
+                    onVote = onVote,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FeatureRequestStatusBadge(request.status)
+                    Text(
+                        text = "Android",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        errorMessage?.let { message ->
+            item {
+                Text(
+                    text = message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+        item { HorizontalDivider() }
+        item {
+            Text(
+                text = request.description,
+                style = MaterialTheme.typography.bodyLarge,
             )
         }
     }
+}
+
+@Composable
+private fun FeatureRequestVoteButton(
+    votes: Int,
+    isVoted: Boolean,
+    isVoting: Boolean,
+    onVote: () -> Unit,
+) {
+    TextButton(
+        onClick = onVote,
+        enabled = !isVoting,
+        modifier = Modifier
+            .widthIn(min = 64.dp)
+            .heightIn(min = 56.dp)
+            .semantics {
+                contentDescription = if (isVoted) {
+                    "Remove vote, $votes votes"
+                } else {
+                    "Vote, $votes votes"
+                }
+            },
+    ) {
+        if (isVoting) {
+            CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.width(18.dp))
+        } else {
+            Text(if (isVoted) "▲ $votes" else "△ $votes")
+        }
+    }
+}
+
+@Composable
+private fun FeatureRequestStatusBadge(status: String) {
+    val statusColor = when (status.publicRequestFilter()) {
+        RequestFilter.IN_REVIEW -> MaterialTheme.colorScheme.tertiary
+        RequestFilter.PLANNED -> MaterialTheme.colorScheme.secondary
+        RequestFilter.IN_PROGRESS -> MaterialTheme.colorScheme.primary
+        RequestFilter.COMPLETED -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Text(
+        text = status.publicRequestLabel(),
+        modifier = Modifier
+            .background(statusColor.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+        style = MaterialTheme.typography.labelMedium,
+        color = statusColor,
+    )
 }
 
 @Composable
@@ -340,8 +472,11 @@ private fun RequestMessage(
 }
 
 private fun anonymousVoterId(context: Context): String {
-    val preferences = context.getSharedPreferences("loopline_sdk", Context.MODE_PRIVATE)
-    return preferences.getString("anonymous_voter_id", null) ?: UUID.randomUUID().toString().also {
+    val preferences = context.getSharedPreferences("feedbackthread_sdk", Context.MODE_PRIVATE)
+    preferences.getString("anonymous_voter_id", null)?.let { return it }
+    val legacyPreferences = context.getSharedPreferences("loopline_sdk", Context.MODE_PRIVATE)
+    val voterId = legacyPreferences.getString("anonymous_voter_id", null) ?: UUID.randomUUID().toString()
+    return voterId.also {
         preferences.edit().putString("anonymous_voter_id", it).apply()
     }
 }

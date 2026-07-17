@@ -5,7 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
-group = "com.loopline"
+group = "com.feedbackthread"
 version = "0.1.0-SNAPSHOT"
 
 android {
@@ -32,6 +32,7 @@ kotlin {
 }
 
 dependencies {
+    implementation("androidx.activity:activity-compose:1.10.0")
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
