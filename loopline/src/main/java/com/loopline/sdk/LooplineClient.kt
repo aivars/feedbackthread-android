@@ -9,10 +9,16 @@ import java.nio.charset.StandardCharsets
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 
 @Serializable
@@ -27,6 +33,45 @@ public enum class LooplineFeedbackKind(public val title: String) {
     REVIEW("Review"),
 }
 
+/**
+ * A customer's plan tier, used to prioritize feedback and votes.
+ *
+ * Pass the same signal you trust for your own paywall — whatever your app already
+ * uses to distinguish free users from paying customers.
+ */
+@Serializable(with = LooplineCustomerTierSerializer::class)
+public sealed class LooplineCustomerTier {
+    public abstract val rawValue: String
+
+    public data object Free : LooplineCustomerTier() {
+        override val rawValue: String = "free"
+    }
+
+    public data object Paying : LooplineCustomerTier() {
+        override val rawValue: String = "paying"
+    }
+
+    public data class Custom(public val value: String) : LooplineCustomerTier() {
+        override val rawValue: String = value
+    }
+}
+
+public object LooplineCustomerTierSerializer : KSerializer<LooplineCustomerTier> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("LooplineCustomerTier", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: LooplineCustomerTier) {
+        encoder.encodeString(value.rawValue)
+    }
+
+    override fun deserialize(decoder: Decoder): LooplineCustomerTier =
+        when (val value = decoder.decodeString()) {
+            "free" -> LooplineCustomerTier.Free
+            "paying" -> LooplineCustomerTier.Paying
+            else -> LooplineCustomerTier.Custom(value)
+        }
+}
+
 @Serializable
 public data class LooplineFeedbackSubmission(
     public val kind: LooplineFeedbackKind,
@@ -35,6 +80,7 @@ public data class LooplineFeedbackSubmission(
     public val appVersion: String? = null,
     @SerialName("externalUserId")
     public val externalUserId: String? = null,
+    public val customerTier: LooplineCustomerTier? = null,
 )
 
 @Serializable
@@ -76,6 +122,7 @@ public data class LooplineFeatureRequest(
     public val status: String,
     public val voted: Boolean,
     public val updatedAt: String,
+    public val shippedInVersion: String? = null,
 )
 
 @Serializable
@@ -114,7 +161,7 @@ public class LooplineClient private constructor(
         LooplineHandlers(
             submit = submissionHandler,
             requests = { emptyList() },
-            setVote = { _, _, _ ->
+            setVote = { _, _, _, _ ->
                 throw LooplineException.InvalidConfiguration("This FeedbackThread client does not support voting.")
             },
         ),
@@ -123,7 +170,7 @@ public class LooplineClient private constructor(
     internal constructor(
         submissionHandler: suspend (LooplineFeedbackSubmission, String) -> LooplineFeedback,
         requestListHandler: suspend (String?) -> List<LooplineFeatureRequest>,
-        voteHandler: suspend (String, Boolean, String) -> LooplineVoteResult,
+        voteHandler: suspend (String, Boolean, String, LooplineCustomerTier?) -> LooplineVoteResult,
     ) : this(
         LooplineHandlers(
             submit = submissionHandler,
@@ -150,11 +197,13 @@ public class LooplineClient private constructor(
     public suspend fun requests(externalUserId: String? = null): List<LooplineFeatureRequest> =
         handlers.requests(externalUserId)
 
+    @JvmOverloads
     public suspend fun setVote(
         requestId: String,
         voted: Boolean,
         externalUserId: String,
-    ): LooplineVoteResult = handlers.setVote(requestId, voted, externalUserId)
+        customerTier: LooplineCustomerTier? = null,
+    ): LooplineVoteResult = handlers.setVote(requestId, voted, externalUserId, customerTier)
 
     private companion object {
         fun createHandlers(
@@ -174,7 +223,7 @@ public class LooplineClient private constructor(
 private data class LooplineHandlers(
     val submit: suspend (LooplineFeedbackSubmission, String) -> LooplineFeedback,
     val requests: suspend (String?) -> List<LooplineFeatureRequest>,
-    val setVote: suspend (String, Boolean, String) -> LooplineVoteResult,
+    val setVote: suspend (String, Boolean, String, LooplineCustomerTier?) -> LooplineVoteResult,
 )
 
 private class LooplineHTTPTransport(
@@ -199,6 +248,7 @@ private class LooplineHTTPTransport(
                 text = submission.text,
                 appVersion = submission.appVersion,
                 externalUserId = submission.externalUserId,
+                customerTier = submission.customerTier,
             ),
         )
         val payloadBytes = payload.toByteArray(StandardCharsets.UTF_8)
@@ -263,6 +313,7 @@ private class LooplineHTTPTransport(
         requestId: String,
         voted: Boolean,
         externalUserId: String,
+        customerTier: LooplineCustomerTier?,
     ): LooplineVoteResult = withContext(Dispatchers.IO) {
         val userId = normalizedUserId(externalUserId)
             ?: throw LooplineException.InvalidConfiguration("A stable user ID is required for voting.")
@@ -274,6 +325,14 @@ private class LooplineHTTPTransport(
             connection.requestMethod = if (voted) "POST" else "DELETE"
             configureConnection(connection)
             connection.setRequestProperty("X-FeedbackThread-User", userId)
+            if (customerTier != null) {
+                val payloadBytes = json.encodeToString(LooplineVotePayload(customerTier))
+                    .toByteArray(StandardCharsets.UTF_8)
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
+                connection.setFixedLengthStreamingMode(payloadBytes.size)
+                connection.outputStream.use { it.write(payloadBytes) }
+            }
             val responseBody = responseBody(connection)
             try {
                 json.decodeFromString<LooplineVoteResult>(responseBody)
@@ -343,6 +402,12 @@ private data class LooplineIngestionPayload(
     val appVersion: String?,
     @SerialName("externalUserId")
     val externalUserId: String?,
+    val customerTier: LooplineCustomerTier?,
+)
+
+@Serializable
+private data class LooplineVotePayload(
+    val customerTier: LooplineCustomerTier,
 )
 
 @Serializable

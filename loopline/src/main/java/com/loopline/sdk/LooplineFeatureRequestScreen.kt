@@ -43,6 +43,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -74,7 +75,7 @@ private enum class RequestFilter(val title: String) {
 }
 
 private fun String.publicRequestFilter(): RequestFilter? = when (this) {
-    "Under review" -> RequestFilter.IN_REVIEW
+    "Under review", "In review" -> RequestFilter.IN_REVIEW
     "Planned" -> RequestFilter.PLANNED
     "In progress", "Ready to release" -> RequestFilter.IN_PROGRESS
     "Released" -> RequestFilter.COMPLETED
@@ -317,7 +318,15 @@ private fun FeatureRequestRow(
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
-            FeatureRequestStatusBadge(request.status)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                FeatureRequestStatusBadge(request.status)
+                request.shippedInVersion?.let { version ->
+                    ShippedInVersionBadge(version)
+                }
+            }
         }
     }
 }
@@ -354,7 +363,15 @@ private fun FeatureRequestDetail(
                     onVote = onVote,
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FeatureRequestStatusBadge(request.status)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        FeatureRequestStatusBadge(request.status)
+                        request.shippedInVersion?.let { version ->
+                            ShippedInVersionBadge(version)
+                        }
+                    }
                     Text(
                         text = "Android",
                         style = MaterialTheme.typography.bodySmall,
@@ -427,6 +444,19 @@ private fun FeatureRequestStatusBadge(status: String) {
             .padding(horizontal = 8.dp, vertical = 3.dp),
         style = MaterialTheme.typography.labelMedium,
         color = statusColor,
+    )
+}
+
+@Composable
+private fun ShippedInVersionBadge(version: String) {
+    val shippedColor = Color(0xFF2E7D32)
+    Text(
+        text = "✓ Shipped in $version",
+        modifier = Modifier
+            .background(shippedColor.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+        style = MaterialTheme.typography.labelMedium,
+        color = shippedColor,
     )
 }
 
@@ -514,6 +544,7 @@ private fun LooplineFeatureRequestScreenPreview() {
             status = "Released",
             voted = false,
             updatedAt = "2026-07-14T12:00:00.000Z",
+            shippedInVersion = "2.4.0",
         ),
     )
     MaterialTheme {
@@ -521,7 +552,7 @@ private fun LooplineFeatureRequestScreenPreview() {
             client = LooplineClient(
                 submissionHandler = { _, _ -> error("Not used in this preview") },
                 requestListHandler = { previewRequests },
-                voteHandler = { id, voted, _ ->
+                voteHandler = { id, voted, _, _ ->
                     LooplineVoteResult(id, if (voted) 13 else 12, voted)
                 },
             ),

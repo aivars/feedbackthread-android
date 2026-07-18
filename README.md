@@ -43,11 +43,32 @@ FeedbackThreadFeatureRequestScreen(
 )
 ```
 
-The list is moderated: Open and Rejected requests stay in the developer dashboard. App users can filter approved requests by In review, Planned, In progress, and Completed. Submitted requests appear only after approval.
+The list is moderated: Submitted and Rejected requests stay in the developer dashboard. App users can filter approved requests by In review, Planned, In progress, and Completed. New requests appear only after approval.
 
 Tapping a request opens its complete, untruncated description. Voting stays available on both the list and detail screens, including an accessible 64×56 dp minimum touch target.
 
 The Android SDK requests only Android-visible features. Apple Watch requests never appear. If the app has no account ID, the screen stores a random anonymous voter ID in app preferences.
+
+Requests whose status is Completed and whose release has been published show a **Shipped in `<version>`** badge next to the status pill, using the `shippedInVersion` value from the request feed.
+
+### Statuses
+
+The dashboard and API renamed two request statuses: `Open` is now `Submitted`, and `Under review` is now `In review`. The SDK's models and public request feed already use the new labels; the feature-request screen still tolerates the old `Under review` label when filtering, in case cached data has not refreshed yet.
+
+### Customer tier
+
+`LooplineFeedbackSubmission` and `LooplineClient.setVote(requestId, voted, externalUserId, customerTier)` both accept an optional `customerTier`:
+
+```kotlin
+LooplineFeedbackSubmission(
+    kind = LooplineFeedbackKind.REQUEST,
+    title = "Add dark mode",
+    text = "Would love a dark theme.",
+    customerTier = LooplineCustomerTier.Paying,
+)
+```
+
+`LooplineCustomerTier` (also exposed as `FeedbackThreadCustomerTier`) is `LooplineCustomerTier.Free`, `LooplineCustomerTier.Paying`, or `LooplineCustomerTier.Custom("<label>")` for plans that don't fit that binary. The convention: pass the same signal you trust for your own paywall. FeedbackThread uses it to help prioritize feedback and votes from paying customers. The field is omitted from the request body entirely when left `null`, so existing integrations are unaffected.
 
 ## Show the feedback screen
 

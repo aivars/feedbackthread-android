@@ -9,6 +9,7 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -46,9 +47,10 @@ public class LooplineClientTest {
         assertTrue(connection.writtenBody.contains("\"title\":\"Schedule by weekday\""))
         assertTrue(connection.writtenBody.contains("\"appVersion\":\"1.0.0 (4)\""))
         assertTrue(connection.writtenBody.contains("\"externalUserId\":\"user-123\""))
+        assertTrue(!connection.writtenBody.contains("customerTier"))
         assertEquals("FDBK-test", feedback.id)
         assertEquals(LooplineFeedbackKind.REQUEST, feedback.kind)
-        assertEquals("Open", feedback.status)
+        assertEquals("Submitted", feedback.status)
     }
 
     @Test
@@ -74,12 +76,68 @@ public class LooplineClientTest {
     }
 
     @Test
+    public fun submissionEncodesCustomerTierWhenProvidedAndOmitsItOtherwise(): Unit = runBlocking {
+        lateinit var connection: FakeHttpURLConnection
+        val client = LooplineClient(
+            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url ->
+                FakeHttpURLConnection(url, 201, successResponse).also { connection = it }
+            },
+        )
+
+        client.submit(
+            LooplineFeedbackSubmission(
+                kind = LooplineFeedbackKind.BUG,
+                title = "Crash",
+                text = "It crashed.",
+                customerTier = LooplineCustomerTier.Paying,
+            ),
+        )
+        assertTrue(connection.writtenBody.contains("\"customerTier\":\"paying\""))
+
+        lateinit var omittingConnection: FakeHttpURLConnection
+        val omittingClient = LooplineClient(
+            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url ->
+                FakeHttpURLConnection(url, 201, successResponse).also { omittingConnection = it }
+            },
+        )
+
+        omittingClient.submit(
+            LooplineFeedbackSubmission(kind = LooplineFeedbackKind.BUG, title = "Crash", text = "It crashed."),
+        )
+        assertTrue(!omittingConnection.writtenBody.contains("customerTier"))
+    }
+
+    @Test
+    public fun submissionEncodesCustomCustomerTierByItsRawLabel(): Unit = runBlocking {
+        lateinit var connection: FakeHttpURLConnection
+        val client = LooplineClient(
+            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url ->
+                FakeHttpURLConnection(url, 201, successResponse).also { connection = it }
+            },
+        )
+
+        client.submit(
+            LooplineFeedbackSubmission(
+                kind = LooplineFeedbackKind.BUG,
+                title = "Crash",
+                text = "It crashed.",
+                customerTier = LooplineCustomerTier.Custom("enterprise"),
+            ),
+        )
+
+        assertTrue(connection.writtenBody.contains("\"customerTier\":\"enterprise\""))
+    }
+
+    @Test
     public fun loadsAndroidRequestFeedWithVoterIdentity(): Unit = runBlocking {
         lateinit var connection: FakeHttpURLConnection
         val client = LooplineClient(
             configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
             connectionFactory = { url ->
-                FakeHttpURLConnection(url, 200, requestsResponse).also { connection = it }
+                FakeHttpURLConnection(url, 200, requestsResponse(shippedInVersion = null)).also { connection = it }
             },
         )
 
@@ -95,6 +153,35 @@ public class LooplineClientTest {
         assertEquals("FDBK-request", requests.first().id)
         assertEquals(LooplineRequestTarget.ANDROID, requests.first().target)
         assertTrue(requests.first().voted)
+        assertNull(requests.first().shippedInVersion)
+    }
+
+    @Test
+    public fun decodesShippedInVersionWhenTheRequestFeedReportsAPublishedRelease(): Unit = runBlocking {
+        val client = LooplineClient(
+            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url ->
+                FakeHttpURLConnection(url, 200, requestsResponse(shippedInVersion = "2.4.0"))
+            },
+        )
+
+        val requests = client.requests("user-123")
+
+        assertEquals("2.4.0", requests.first().shippedInVersion)
+    }
+
+    @Test
+    public fun decodesAMissingShippedInVersionAsNull(): Unit = runBlocking {
+        val client = LooplineClient(
+            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url ->
+                FakeHttpURLConnection(url, 200, requestsResponse(shippedInVersion = null))
+            },
+        )
+
+        val requests = client.requests("user-123")
+
+        assertNull(requests.first().shippedInVersion)
     }
 
     @Test
@@ -122,10 +209,32 @@ public class LooplineClientTest {
             connections[0].url.toString(),
         )
         assertEquals("user-123", connections[0].getRequestProperty("X-FeedbackThread-User"))
+        assertTrue(connections[0].writtenBody.isEmpty())
         assertTrue(added.voted)
         assertEquals(13, added.votes)
         assertTrue(!removed.voted)
         assertEquals(12, removed.votes)
+    }
+
+    @Test
+    public fun voteCarriesCustomerTierInTheBodyWhenProvided(): Unit = runBlocking {
+        lateinit var connection: FakeHttpURLConnection
+        val client = LooplineClient(
+            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url ->
+                FakeHttpURLConnection(url, 200, addedVoteResponse).also { connection = it }
+            },
+        )
+
+        client.setVote(
+            requestId = "FDBK-request",
+            voted = true,
+            externalUserId = "user-123",
+            customerTier = LooplineCustomerTier.Free,
+        )
+
+        assertEquals("application/json", connection.getRequestProperty("Content-Type"))
+        assertTrue(connection.writtenBody.contains("\"customerTier\":\"free\""))
     }
 
     @Test
@@ -166,7 +275,7 @@ public class LooplineClientTest {
 
         assertEquals("android", feedback.source)
         assertEquals("Android SDK live integration test", feedback.title)
-        assertEquals("Open", feedback.status)
+        assertEquals("Submitted", feedback.status)
 
         val requests = client.requests("android-live-reader")
         assertTrue(requests.isNotEmpty())
@@ -182,7 +291,7 @@ public class LooplineClientTest {
                 "title": "Schedule by weekday",
                 "excerpt": "Please add weekday schedules.",
                 "version": "1.0.0 (4)",
-                "status": "Open",
+                "status": "Submitted",
                 "count": 1,
                 "note": "",
                 "responseDraft": "",
@@ -193,22 +302,26 @@ public class LooplineClientTest {
             }
         """.trimIndent()
 
-        val requestsResponse: String = """
-            {
-              "requests": [
+        fun requestsResponse(shippedInVersion: String?): String {
+            val shippedInVersionJson = if (shippedInVersion != null) "\"$shippedInVersion\"" else "null"
+            return """
                 {
-                  "id": "FDBK-request",
-                  "title": "More training plans",
-                  "description": "Add a longer progression for experienced users.",
-                  "votes": 12,
-                  "target": "android",
-                  "status": "Planned",
-                  "voted": true,
-                  "updatedAt": "2026-07-16T12:00:00.000Z"
+                  "requests": [
+                    {
+                      "id": "FDBK-request",
+                      "title": "More training plans",
+                      "description": "Add a longer progression for experienced users.",
+                      "votes": 12,
+                      "target": "android",
+                      "status": "Planned",
+                      "voted": true,
+                      "updatedAt": "2026-07-16T12:00:00.000Z",
+                      "shippedInVersion": $shippedInVersionJson
+                    }
+                  ]
                 }
-              ]
-            }
-        """.trimIndent()
+            """.trimIndent()
+        }
 
         val addedVoteResponse: String =
             """{"feedbackId":"FDBK-request","votes":13,"voted":true}"""

@@ -212,7 +212,7 @@ private fun LooplineFeedbackScreenPreview() {
                     title = submission.title,
                     excerpt = submission.text,
                     version = submission.appVersion ?: "Preview",
-                    status = "Open",
+                    status = "Submitted",
                     count = 1,
                     note = "",
                     responseDraft = "",

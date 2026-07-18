@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
 public typealias FeedbackThreadFeedbackKind = com.loopline.sdk.LooplineFeedbackKind
+public typealias FeedbackThreadCustomerTier = com.loopline.sdk.LooplineCustomerTier
 public typealias FeedbackThreadFeedbackSubmission = com.loopline.sdk.LooplineFeedbackSubmission
 public typealias FeedbackThreadFeedback = com.loopline.sdk.LooplineFeedback
 public typealias FeedbackThreadRequestTarget = com.loopline.sdk.LooplineRequestTarget
