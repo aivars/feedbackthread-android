@@ -33,7 +33,15 @@ implementation("com.feedbackthread:feedbackthread-android:0.2.0")
 In Apnea Android's `settings.gradle.kts`, add:
 
 ```kotlin
-includeBuild("../Loopline/sdk/android")
+includeBuild("../Loopline/sdk/android") {
+    dependencySubstitution {
+        // Required: the Gradle project is named :feedbackthread while the
+        // published artifactId is feedbackthread-android, so automatic
+        // substitution does not match the coordinate on its own.
+        substitute(module("com.feedbackthread:feedbackthread-android"))
+            .using(project(":feedbackthread"))
+    }
+}
 ```
 
 In `app/build.gradle.kts`, add:
@@ -42,7 +50,7 @@ In `app/build.gradle.kts`, add:
 implementation("com.feedbackthread:feedbackthread-android:0.2.0")
 ```
 
-Gradle's included-build substitution resolves that coordinate to the local FeedbackThread SDK, regardless of the exact version string.
+The explicit substitution resolves that coordinate to the local FeedbackThread SDK regardless of the exact version string. A working consumer lives in `examples/android`.
 
 ## Configure the client
 
