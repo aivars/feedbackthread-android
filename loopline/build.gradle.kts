@@ -3,13 +3,14 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("maven-publish")
 }
 
 group = "com.feedbackthread"
-version = "0.1.0-SNAPSHOT"
+version = "0.2.0"
 
 android {
-    namespace = "com.loopline.sdk"
+    namespace = "com.feedbackthread.sdk"
     compileSdk = 35
 
     defaultConfig {
@@ -24,6 +25,12 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+        }
     }
 }
 
@@ -44,4 +51,47 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            create<MavenPublication>("release") {
+                from(components["release"])
+
+                groupId = "com.feedbackthread"
+                artifactId = "feedbackthread-android"
+                version = project.version.toString()
+
+                pom {
+                    name.set("FeedbackThread Android SDK")
+                    description.set(
+                        "Kotlin client plus native Compose feedback and feature-request " +
+                            "screens for the FeedbackThread feedback and feature-request platform.",
+                    )
+                    url.set("https://feedbackthread.com")
+
+                    licenses {
+                        license {
+                            name.set("MIT License")
+                            url.set("https://opensource.org/licenses/MIT")
+                        }
+                    }
+
+                    developers {
+                        developer {
+                            id.set("aivars")
+                            name.set("Aivars Meijers")
+                        }
+                    }
+
+                    scm {
+                        url.set("https://github.com/aivars/loopline")
+                        connection.set("scm:git:https://github.com/aivars/loopline.git")
+                        developerConnection.set("scm:git:ssh://git@github.com/aivars/loopline.git")
+                    }
+                }
+            }
+        }
+    }
 }

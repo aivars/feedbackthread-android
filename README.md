@@ -2,7 +2,33 @@
 
 The private-alpha Android SDK provides an async Kotlin client plus native Compose feedback and feature-request screens. It targets minSdk 26 and matches Apnea Android's current Kotlin 2.1, AGP 8.7, Gradle 8.11, and Compose toolchain.
 
-## Add the local SDK to Apnea
+## Add the SDK to Apnea
+
+### Maven coordinates (Central publication pending)
+
+The published coordinate is:
+
+```kotlin
+implementation("com.feedbackthread:feedbackthread-android:0.2.0")
+```
+
+This has not been published to Maven Central yet. Until then, use one of the two options below.
+
+### Option A: `mavenLocal()`
+
+Publish the SDK to your local Maven repository from this checkout:
+
+```sh
+./gradlew :feedbackthread:publishToMavenLocal
+```
+
+Then add `mavenLocal()` to Apnea Android's repository list and depend on the same coordinate:
+
+```kotlin
+implementation("com.feedbackthread:feedbackthread-android:0.2.0")
+```
+
+### Option B: composite build (local development)
 
 In Apnea Android's `settings.gradle.kts`, add:
 
@@ -13,10 +39,10 @@ includeBuild("../Loopline/sdk/android")
 In `app/build.gradle.kts`, add:
 
 ```kotlin
-implementation("com.feedbackthread:feedbackthread:0.1.0-SNAPSHOT")
+implementation("com.feedbackthread:feedbackthread-android:0.2.0")
 ```
 
-Gradle's included-build substitution resolves that coordinate to the local FeedbackThread SDK. A published Maven coordinate will replace this before public beta.
+Gradle's included-build substitution resolves that coordinate to the local FeedbackThread SDK, regardless of the exact version string.
 
 ## Configure the client
 
@@ -57,18 +83,18 @@ The dashboard and API renamed two request statuses: `Open` is now `Submitted`, a
 
 ### Customer tier
 
-`LooplineFeedbackSubmission` and `LooplineClient.setVote(requestId, voted, externalUserId, customerTier)` both accept an optional `customerTier`:
+`FeedbackThreadFeedbackSubmission` and `FeedbackThreadClient.setVote(requestId, voted, externalUserId, customerTier)` both accept an optional `customerTier`:
 
 ```kotlin
-LooplineFeedbackSubmission(
-    kind = LooplineFeedbackKind.REQUEST,
+FeedbackThreadFeedbackSubmission(
+    kind = FeedbackThreadFeedbackKind.REQUEST,
     title = "Add dark mode",
     text = "Would love a dark theme.",
-    customerTier = LooplineCustomerTier.Paying,
+    customerTier = FeedbackThreadCustomerTier.Paying,
 )
 ```
 
-`LooplineCustomerTier` (also exposed as `FeedbackThreadCustomerTier`) is `LooplineCustomerTier.Free`, `LooplineCustomerTier.Paying`, or `LooplineCustomerTier.Custom("<label>")` for plans that don't fit that binary. The convention: pass the same signal you trust for your own paywall. FeedbackThread uses it to help prioritize feedback and votes from paying customers. The field is omitted from the request body entirely when left `null`, so existing integrations are unaffected.
+`FeedbackThreadCustomerTier` is `FeedbackThreadCustomerTier.Free`, `FeedbackThreadCustomerTier.Paying`, or `FeedbackThreadCustomerTier.Custom("<label>")` for plans that don't fit that binary. The convention: pass the same signal you trust for your own paywall. FeedbackThread uses it to help prioritize feedback and votes from paying customers. The field is omitted from the request body entirely when left `null`, so existing integrations are unaffected.
 
 ## Show the feedback screen
 
@@ -82,6 +108,10 @@ FeedbackThreadFeedbackScreen(
 
 Every submission receives a unique `Idempotency-Key`, preventing a retried request from creating duplicate feedback.
 
+## Migrating from the `com.loopline.sdk` package (0.1.x → 0.2.0)
+
+As of 0.2.0, the real implementation lives in `com.feedbackthread.sdk`. The previous `com.loopline.sdk` package (`LooplineClient`, `LooplineConfiguration`, `LooplineFeedbackSubmission`, `LooplineFeatureRequestScreen`, `LooplineFeedbackScreen`, and so on) still compiles — it is now a thin `@Deprecated(..., ReplaceWith(...))` compatibility layer that delegates to `com.feedbackthread.sdk` — but Android Studio will flag every use with a deprecation warning, and **it is removed in 0.3.0**. Existing integrators (Apnea, FocusLock) should update their imports from `com.loopline.sdk` to `com.feedbackthread.sdk` before then; most IDEs can apply the `ReplaceWith` quick fix automatically for each deprecated symbol.
+
 ## Checks
 
 The SDK requires JDK 17. On this development Mac, use the installed Homebrew runtime with `JAVA_HOME=/usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home` when Java is not registered system-wide.
@@ -89,6 +119,7 @@ The SDK requires JDK 17. On this development Mac, use the installed Homebrew run
 ```sh
 ./gradlew :feedbackthread:testDebugUnitTest
 ./gradlew :feedbackthread:assembleDebug
+./gradlew :feedbackthread:publishToMavenLocal
 ```
 
 The opt-in live integration test runs when `FEEDBACKTHREAD_LIVE_BASE_URL` and `FEEDBACKTHREAD_LIVE_PROJECT_KEY` are present in the environment. The legacy names remain accepted during the private alpha.

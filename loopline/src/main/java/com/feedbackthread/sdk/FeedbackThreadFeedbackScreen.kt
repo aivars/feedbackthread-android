@@ -1,4 +1,4 @@
-package com.loopline.sdk
+package com.feedbackthread.sdk
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -46,15 +46,15 @@ private sealed interface SubmissionPhase {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-public fun LooplineFeedbackScreen(
-    client: LooplineClient,
+public fun FeedbackThreadFeedbackScreen(
+    client: FeedbackThreadClient,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     appVersion: String? = null,
     externalUserId: String? = null,
-    onSubmitted: (LooplineFeedback) -> Unit = {},
+    onSubmitted: (FeedbackThreadFeedback) -> Unit = {},
 ) {
-    var kind by remember { mutableStateOf(LooplineFeedbackKind.REQUEST) }
+    var kind by remember { mutableStateOf(FeedbackThreadFeedbackKind.REQUEST) }
     var title by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     var phase by remember { mutableStateOf<SubmissionPhase>(SubmissionPhase.Editing) }
@@ -84,12 +84,12 @@ public fun LooplineFeedbackScreen(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Text(
-                    if (kind == LooplineFeedbackKind.REQUEST) "Request submitted for review" else "Feedback sent",
+                    if (kind == FeedbackThreadFeedbackKind.REQUEST) "Request submitted for review" else "Feedback sent",
                     style = MaterialTheme.typography.headlineSmall,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    if (kind == LooplineFeedbackKind.REQUEST) {
+                    if (kind == FeedbackThreadFeedbackKind.REQUEST) {
                         "It will appear in the feature list after it is approved."
                     } else {
                         "Thank you for helping us improve the app."
@@ -116,7 +116,7 @@ public fun LooplineFeedbackScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    LooplineFeedbackKind.entries.forEach { option ->
+                    FeedbackThreadFeedbackKind.entries.forEach { option ->
                         FilterChip(
                             selected = kind == option,
                             onClick = { kind = option },
@@ -165,7 +165,7 @@ public fun LooplineFeedbackScreen(
                         scope.launch {
                             try {
                                 val feedback = client.submit(
-                                    LooplineFeedbackSubmission(
+                                    FeedbackThreadFeedbackSubmission(
                                         kind = kind,
                                         title = title.trim(),
                                         text = message.trim(),
@@ -201,11 +201,11 @@ public fun LooplineFeedbackScreen(
 
 @Preview(showBackground = true)
 @Composable
-private fun LooplineFeedbackScreenPreview() {
+private fun FeedbackThreadFeedbackScreenPreview() {
     MaterialTheme {
-        LooplineFeedbackScreen(
-            client = LooplineClient { submission, _ ->
-                LooplineFeedback(
+        FeedbackThreadFeedbackScreen(
+            client = FeedbackThreadClient { submission, _ ->
+                FeedbackThreadFeedback(
                     id = "FDBK-preview",
                     kind = submission.kind,
                     source = "android",

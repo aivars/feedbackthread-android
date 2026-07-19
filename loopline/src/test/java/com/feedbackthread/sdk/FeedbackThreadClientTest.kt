@@ -1,4 +1,4 @@
-package com.loopline.sdk
+package com.feedbackthread.sdk
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -14,12 +14,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
-public class LooplineClientTest {
+public class FeedbackThreadClientTest {
     @Test
     public fun submitsDocumentedPayloadAndIdempotencyKey(): Unit = runBlocking {
         lateinit var connection: FakeHttpURLConnection
-        val client = LooplineClient(
-            configuration = LooplineConfiguration(
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration(
                 baseUrl = "https://example.com",
                 projectKey = "project-key",
                 source = "android",
@@ -29,8 +29,8 @@ public class LooplineClientTest {
             },
         )
         val feedback = client.submit(
-            submission = LooplineFeedbackSubmission(
-                kind = LooplineFeedbackKind.REQUEST,
+            submission = FeedbackThreadFeedbackSubmission(
+                kind = FeedbackThreadFeedbackKind.REQUEST,
                 title = "Schedule by weekday",
                 text = "Please add weekday schedules.",
                 appVersion = "1.0.0 (4)",
@@ -49,14 +49,14 @@ public class LooplineClientTest {
         assertTrue(connection.writtenBody.contains("\"externalUserId\":\"user-123\""))
         assertTrue(!connection.writtenBody.contains("customerTier"))
         assertEquals("FDBK-test", feedback.id)
-        assertEquals(LooplineFeedbackKind.REQUEST, feedback.kind)
+        assertEquals(FeedbackThreadFeedbackKind.REQUEST, feedback.kind)
         assertEquals("Submitted", feedback.status)
     }
 
     @Test
     public fun surfacesServerErrorMessage(): Unit = runBlocking {
-        val client = LooplineClient(
-            configuration = LooplineConfiguration("https://example.com", "wrong-key", "android"),
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "wrong-key", "android"),
             connectionFactory = { url ->
                 FakeHttpURLConnection(
                     url = url,
@@ -67,9 +67,9 @@ public class LooplineClientTest {
         )
 
         try {
-            client.submit(LooplineFeedbackSubmission(LooplineFeedbackKind.BUG, "Crash", "It crashed."))
+            client.submit(FeedbackThreadFeedbackSubmission(FeedbackThreadFeedbackKind.BUG, "Crash", "It crashed."))
             fail("Expected a server error")
-        } catch (error: LooplineException.Server) {
+        } catch (error: FeedbackThreadException.Server) {
             assertEquals(404, error.statusCode)
             assertEquals("Project was not found.", error.message)
         }
@@ -78,33 +78,33 @@ public class LooplineClientTest {
     @Test
     public fun submissionEncodesCustomerTierWhenProvidedAndOmitsItOtherwise(): Unit = runBlocking {
         lateinit var connection: FakeHttpURLConnection
-        val client = LooplineClient(
-            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
             connectionFactory = { url ->
                 FakeHttpURLConnection(url, 201, successResponse).also { connection = it }
             },
         )
 
         client.submit(
-            LooplineFeedbackSubmission(
-                kind = LooplineFeedbackKind.BUG,
+            FeedbackThreadFeedbackSubmission(
+                kind = FeedbackThreadFeedbackKind.BUG,
                 title = "Crash",
                 text = "It crashed.",
-                customerTier = LooplineCustomerTier.Paying,
+                customerTier = FeedbackThreadCustomerTier.Paying,
             ),
         )
         assertTrue(connection.writtenBody.contains("\"customerTier\":\"paying\""))
 
         lateinit var omittingConnection: FakeHttpURLConnection
-        val omittingClient = LooplineClient(
-            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+        val omittingClient = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
             connectionFactory = { url ->
                 FakeHttpURLConnection(url, 201, successResponse).also { omittingConnection = it }
             },
         )
 
         omittingClient.submit(
-            LooplineFeedbackSubmission(kind = LooplineFeedbackKind.BUG, title = "Crash", text = "It crashed."),
+            FeedbackThreadFeedbackSubmission(kind = FeedbackThreadFeedbackKind.BUG, title = "Crash", text = "It crashed."),
         )
         assertTrue(!omittingConnection.writtenBody.contains("customerTier"))
     }
@@ -112,19 +112,19 @@ public class LooplineClientTest {
     @Test
     public fun submissionEncodesCustomCustomerTierByItsRawLabel(): Unit = runBlocking {
         lateinit var connection: FakeHttpURLConnection
-        val client = LooplineClient(
-            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
             connectionFactory = { url ->
                 FakeHttpURLConnection(url, 201, successResponse).also { connection = it }
             },
         )
 
         client.submit(
-            LooplineFeedbackSubmission(
-                kind = LooplineFeedbackKind.BUG,
+            FeedbackThreadFeedbackSubmission(
+                kind = FeedbackThreadFeedbackKind.BUG,
                 title = "Crash",
                 text = "It crashed.",
-                customerTier = LooplineCustomerTier.Custom("enterprise"),
+                customerTier = FeedbackThreadCustomerTier.Custom("enterprise"),
             ),
         )
 
@@ -134,8 +134,8 @@ public class LooplineClientTest {
     @Test
     public fun loadsAndroidRequestFeedWithVoterIdentity(): Unit = runBlocking {
         lateinit var connection: FakeHttpURLConnection
-        val client = LooplineClient(
-            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
             connectionFactory = { url ->
                 FakeHttpURLConnection(url, 200, requestsResponse(shippedInVersion = null)).also { connection = it }
             },
@@ -151,15 +151,15 @@ public class LooplineClientTest {
         assertEquals("user-123", connection.getRequestProperty("X-FeedbackThread-User"))
         assertEquals(1, requests.size)
         assertEquals("FDBK-request", requests.first().id)
-        assertEquals(LooplineRequestTarget.ANDROID, requests.first().target)
+        assertEquals(FeedbackThreadRequestTarget.ANDROID, requests.first().target)
         assertTrue(requests.first().voted)
         assertNull(requests.first().shippedInVersion)
     }
 
     @Test
     public fun decodesShippedInVersionWhenTheRequestFeedReportsAPublishedRelease(): Unit = runBlocking {
-        val client = LooplineClient(
-            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
             connectionFactory = { url ->
                 FakeHttpURLConnection(url, 200, requestsResponse(shippedInVersion = "2.4.0"))
             },
@@ -172,8 +172,8 @@ public class LooplineClientTest {
 
     @Test
     public fun decodesAMissingShippedInVersionAsNull(): Unit = runBlocking {
-        val client = LooplineClient(
-            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
             connectionFactory = { url ->
                 FakeHttpURLConnection(url, 200, requestsResponse(shippedInVersion = null))
             },
@@ -187,8 +187,8 @@ public class LooplineClientTest {
     @Test
     public fun addsAndRemovesAndroidVotes(): Unit = runBlocking {
         val connections = mutableListOf<FakeHttpURLConnection>()
-        val client = LooplineClient(
-            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
             connectionFactory = { url ->
                 val removing = connections.isNotEmpty()
                 FakeHttpURLConnection(
@@ -219,8 +219,8 @@ public class LooplineClientTest {
     @Test
     public fun voteCarriesCustomerTierInTheBodyWhenProvided(): Unit = runBlocking {
         lateinit var connection: FakeHttpURLConnection
-        val client = LooplineClient(
-            configuration = LooplineConfiguration("https://example.com", "project-key", "android"),
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
             connectionFactory = { url ->
                 FakeHttpURLConnection(url, 200, addedVoteResponse).also { connection = it }
             },
@@ -230,7 +230,7 @@ public class LooplineClientTest {
             requestId = "FDBK-request",
             voted = true,
             externalUserId = "user-123",
-            customerTier = LooplineCustomerTier.Free,
+            customerTier = FeedbackThreadCustomerTier.Free,
         )
 
         assertEquals("application/json", connection.getRequestProperty("Content-Type"))
@@ -239,16 +239,50 @@ public class LooplineClientTest {
 
     @Test
     public fun rejectsEmptyProjectKeyBeforeSending(): Unit = runBlocking {
-        val client = LooplineClient(
-            LooplineConfiguration("https://example.com", "  ", "android"),
+        val client = FeedbackThreadClient(
+            FeedbackThreadConfiguration("https://example.com", "  ", "android"),
         )
 
         try {
-            client.submit(LooplineFeedbackSubmission(LooplineFeedbackKind.BUG, "Crash", "It crashed."))
+            client.submit(FeedbackThreadFeedbackSubmission(FeedbackThreadFeedbackKind.BUG, "Crash", "It crashed."))
             fail("Expected an invalid configuration error")
-        } catch (error: LooplineException.InvalidConfiguration) {
+        } catch (error: FeedbackThreadException.InvalidConfiguration) {
             assertEquals("A FeedbackThread project key is required.", error.message)
         }
+    }
+
+    @Test
+    public fun rejectsNonHttpBaseUrlScheme(): Unit = runBlocking {
+        val client = FeedbackThreadClient(
+            FeedbackThreadConfiguration("ftp://example.com", "project-key", "android"),
+        )
+
+        try {
+            client.submit(FeedbackThreadFeedbackSubmission(FeedbackThreadFeedbackKind.BUG, "Crash", "It crashed."))
+            fail("Expected an invalid configuration error")
+        } catch (error: FeedbackThreadException.InvalidConfiguration) {
+            assertEquals("The FeedbackThread base URL must use HTTP or HTTPS.", error.message)
+        }
+    }
+
+    @Test
+    public fun usesDeprecatedLooplineAliasesForCompatibility(): Unit = runBlocking {
+        @Suppress("DEPRECATION")
+        val legacyClient: com.loopline.sdk.LooplineClient = com.loopline.sdk.LooplineClient(
+            configuration = com.loopline.sdk.LooplineConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url -> FakeHttpURLConnection(url, 201, successResponse) },
+        )
+
+        @Suppress("DEPRECATION")
+        val feedback = legacyClient.submit(
+            com.loopline.sdk.LooplineFeedbackSubmission(
+                kind = com.loopline.sdk.LooplineFeedbackKind.BUG,
+                title = "Crash",
+                text = "It crashed.",
+            ),
+        )
+
+        assertEquals("Submitted", feedback.status)
     }
 
     @Test
@@ -259,16 +293,16 @@ public class LooplineClientTest {
         val projectKey = System.getenv("FEEDBACKTHREAD_LIVE_PROJECT_KEY")
             ?: System.getenv("LOOPLINE_LIVE_PROJECT_KEY")
             ?: return@runBlocking
-        val client = LooplineClient(
-            LooplineConfiguration(baseURL, projectKey, "android"),
+        val client = FeedbackThreadClient(
+            FeedbackThreadConfiguration(baseURL, projectKey, "android"),
         )
 
         val feedback = client.submit(
-            LooplineFeedbackSubmission(
-                kind = LooplineFeedbackKind.BUG,
+            FeedbackThreadFeedbackSubmission(
+                kind = FeedbackThreadFeedbackKind.BUG,
                 title = "Android SDK live integration test",
-                text = "Created by the Loopline Android package integration test.",
-                appVersion = "Loopline Android SDK alpha",
+                text = "Created by the FeedbackThread Android package integration test.",
+                appVersion = "FeedbackThread Android SDK alpha",
             ),
             idempotencyKey = "android-live-${System.currentTimeMillis()}",
         )

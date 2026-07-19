@@ -1,4 +1,4 @@
-package com.loopline.sdk
+package com.feedbackthread.sdk
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
@@ -86,8 +86,8 @@ private fun String.publicRequestLabel(): String = publicRequestFilter()?.title ?
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-public fun LooplineFeatureRequestScreen(
-    client: LooplineClient,
+public fun FeedbackThreadFeatureRequestScreen(
+    client: FeedbackThreadClient,
     onDismiss: () -> Unit,
     onAddRequest: () -> Unit,
     modifier: Modifier = Modifier,
@@ -97,7 +97,7 @@ public fun LooplineFeatureRequestScreen(
     val voterId = remember(externalUserId) {
         externalUserId?.trim()?.takeIf { it.isNotEmpty() } ?: anonymousVoterId(context)
     }
-    var requests by remember { mutableStateOf<List<LooplineFeatureRequest>>(emptyList()) }
+    var requests by remember { mutableStateOf<List<FeedbackThreadFeatureRequest>>(emptyList()) }
     var phase by remember { mutableStateOf<RequestLoadPhase>(RequestLoadPhase.Loading) }
     var votingIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var selectedFilter by rememberSaveable { mutableStateOf(RequestFilter.ALL) }
@@ -133,7 +133,7 @@ public fun LooplineFeatureRequestScreen(
         selectedRequestId = null
     }
 
-    val toggleVote: (LooplineFeatureRequest) -> Unit = { request ->
+    val toggleVote: (FeedbackThreadFeatureRequest) -> Unit = { request ->
         if (request.id !in votingIds) {
             votingIds = votingIds + request.id
             scope.launch {
@@ -281,7 +281,7 @@ public fun LooplineFeatureRequestScreen(
 
 @Composable
 private fun FeatureRequestRow(
-    request: LooplineFeatureRequest,
+    request: FeedbackThreadFeatureRequest,
     isVoting: Boolean,
     onVote: () -> Unit,
     onOpen: () -> Unit,
@@ -333,7 +333,7 @@ private fun FeatureRequestRow(
 
 @Composable
 private fun FeatureRequestDetail(
-    request: LooplineFeatureRequest,
+    request: FeedbackThreadFeatureRequest,
     isVoting: Boolean,
     errorMessage: String?,
     onVote: () -> Unit,
@@ -513,34 +513,34 @@ private fun anonymousVoterId(context: Context): String {
 
 @Preview(showBackground = true)
 @Composable
-private fun LooplineFeatureRequestScreenPreview() {
+private fun FeedbackThreadFeatureRequestScreenPreview() {
     val previewRequests = listOf(
-        LooplineFeatureRequest(
+        FeedbackThreadFeatureRequest(
             id = "FDBK-1",
             title = "Breathing reminders",
             description = "Remind me when it is time to practice.",
             votes = 34,
-            target = LooplineRequestTarget.ANDROID,
+            target = FeedbackThreadRequestTarget.ANDROID,
             status = "In progress",
             voted = true,
             updatedAt = "2026-07-16T12:00:00.000Z",
         ),
-        LooplineFeatureRequest(
+        FeedbackThreadFeatureRequest(
             id = "FDBK-2",
             title = "More training plans",
             description = "Add a longer progression for experienced users.",
             votes = 12,
-            target = LooplineRequestTarget.ANDROID,
+            target = FeedbackThreadRequestTarget.ANDROID,
             status = "Planned",
             voted = false,
             updatedAt = "2026-07-15T12:00:00.000Z",
         ),
-        LooplineFeatureRequest(
+        FeedbackThreadFeatureRequest(
             id = "FDBK-3",
             title = "Health integration",
             description = "Include completed sessions in Health Connect.",
             votes = 9,
-            target = LooplineRequestTarget.ANDROID,
+            target = FeedbackThreadRequestTarget.ANDROID,
             status = "Released",
             voted = false,
             updatedAt = "2026-07-14T12:00:00.000Z",
@@ -548,12 +548,12 @@ private fun LooplineFeatureRequestScreenPreview() {
         ),
     )
     MaterialTheme {
-        LooplineFeatureRequestScreen(
-            client = LooplineClient(
+        FeedbackThreadFeatureRequestScreen(
+            client = FeedbackThreadClient(
                 submissionHandler = { _, _ -> error("Not used in this preview") },
                 requestListHandler = { previewRequests },
                 voteHandler = { id, voted, _, _ ->
-                    LooplineVoteResult(id, if (voted) 13 else 12, voted)
+                    FeedbackThreadVoteResult(id, if (voted) 13 else 12, voted)
                 },
             ),
             onDismiss = {},
