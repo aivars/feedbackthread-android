@@ -504,9 +504,7 @@ private fun RequestMessage(
 private fun anonymousVoterId(context: Context): String {
     val preferences = context.getSharedPreferences("feedbackthread_sdk", Context.MODE_PRIVATE)
     preferences.getString("anonymous_voter_id", null)?.let { return it }
-    val legacyPreferences = context.getSharedPreferences("loopline_sdk", Context.MODE_PRIVATE)
-    val voterId = legacyPreferences.getString("anonymous_voter_id", null) ?: UUID.randomUUID().toString()
-    return voterId.also {
+    return UUID.randomUUID().toString().also {
         preferences.edit().putString("anonymous_voter_id", it).apply()
     }
 }

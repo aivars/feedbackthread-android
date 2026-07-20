@@ -266,32 +266,10 @@ public class FeedbackThreadClientTest {
     }
 
     @Test
-    public fun usesDeprecatedLooplineAliasesForCompatibility(): Unit = runBlocking {
-        @Suppress("DEPRECATION")
-        val legacyClient: com.loopline.sdk.LooplineClient = com.loopline.sdk.LooplineClient(
-            configuration = com.loopline.sdk.LooplineConfiguration("https://example.com", "project-key", "android"),
-            connectionFactory = { url -> FakeHttpURLConnection(url, 201, successResponse) },
-        )
-
-        @Suppress("DEPRECATION")
-        val feedback = legacyClient.submit(
-            com.loopline.sdk.LooplineFeedbackSubmission(
-                kind = com.loopline.sdk.LooplineFeedbackKind.BUG,
-                title = "Crash",
-                text = "It crashed.",
-            ),
-        )
-
-        assertEquals("Submitted", feedback.status)
-    }
-
-    @Test
     public fun submitsThroughLiveStagingWhenConfigured(): Unit = runBlocking {
         val baseURL = System.getenv("FEEDBACKTHREAD_LIVE_BASE_URL")
-            ?: System.getenv("LOOPLINE_LIVE_BASE_URL")
             ?: return@runBlocking
         val projectKey = System.getenv("FEEDBACKTHREAD_LIVE_PROJECT_KEY")
-            ?: System.getenv("LOOPLINE_LIVE_PROJECT_KEY")
             ?: return@runBlocking
         val client = FeedbackThreadClient(
             FeedbackThreadConfiguration(baseURL, projectKey, "android"),
