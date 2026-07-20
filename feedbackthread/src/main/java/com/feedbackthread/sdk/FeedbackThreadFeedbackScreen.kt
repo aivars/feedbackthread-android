@@ -52,12 +52,14 @@ public fun FeedbackThreadFeedbackScreen(
     modifier: Modifier = Modifier,
     appVersion: String? = null,
     externalUserId: String? = null,
+    customerTierProvider: (() -> FeedbackThreadCustomerTier?)? = null,
     onSubmitted: (FeedbackThreadFeedback) -> Unit = {},
 ) {
     var kind by remember { mutableStateOf(FeedbackThreadFeedbackKind.REQUEST) }
     var title by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     var phase by remember { mutableStateOf<SubmissionPhase>(SubmissionPhase.Editing) }
+    val resubmissionKey = remember { FeedbackThreadResubmissionKey() }
     val scope = rememberCoroutineScope()
     val canSubmit = title.isNotBlank() && message.isNotBlank() && phase !is SubmissionPhase.Submitting
 
@@ -127,7 +129,10 @@ public fun FeedbackThreadFeedbackScreen(
 
                 OutlinedTextField(
                     value = title,
-                    onValueChange = { title = it },
+                    onValueChange = {
+                        title = it
+                        resubmissionKey.contentChanged()
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Short title") },
                     singleLine = true,
@@ -140,7 +145,10 @@ public fun FeedbackThreadFeedbackScreen(
 
                 OutlinedTextField(
                     value = message,
-                    onValueChange = { message = it },
+                    onValueChange = {
+                        message = it
+                        resubmissionKey.contentChanged()
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Details") },
                     minLines = 5,
@@ -162,18 +170,25 @@ public fun FeedbackThreadFeedbackScreen(
                 Button(
                     onClick = {
                         phase = SubmissionPhase.Submitting
+                        // Reused across retries of the same content so a network failure
+                        // followed by tapping Send again can't create a duplicate
+                        // submission server-side.
+                        val idempotencyKey = resubmissionKey.beginAttempt()
                         scope.launch {
                             try {
                                 val feedback = client.submit(
-                                    FeedbackThreadFeedbackSubmission(
+                                    submission = FeedbackThreadFeedbackSubmission(
                                         kind = kind,
                                         title = title.trim(),
                                         text = message.trim(),
                                         appVersion = appVersion,
                                         externalUserId = externalUserId,
+                                        customerTier = customerTierProvider?.invoke(),
                                     ),
+                                    idempotencyKey = idempotencyKey,
                                 )
                                 phase = SubmissionPhase.Sent
+                                resubmissionKey.submissionSucceeded()
                                 onSubmitted(feedback)
                             } catch (error: CancellationException) {
                                 throw error

@@ -69,20 +69,15 @@ private enum class RequestFilter(val title: String) {
     COMPLETED("Completed");
 
     fun includes(status: String): Boolean = when (this) {
-        ALL -> status.publicRequestFilter() != null
-        else -> status.publicRequestFilter() == this
+        // Unknown statuses are included under "All" rather than dropped, so a
+        // status the SDK doesn't recognize yet doesn't silently hide cards.
+        ALL -> true
+        IN_REVIEW -> status.feedbackThreadRequestStage() == FeedbackThreadRequestStage.InReview
+        PLANNED -> status.feedbackThreadRequestStage() == FeedbackThreadRequestStage.Planned
+        IN_PROGRESS -> status.feedbackThreadRequestStage() == FeedbackThreadRequestStage.InProgress
+        COMPLETED -> status.feedbackThreadRequestStage() == FeedbackThreadRequestStage.Completed
     }
 }
-
-private fun String.publicRequestFilter(): RequestFilter? = when (this) {
-    "Under review", "In review" -> RequestFilter.IN_REVIEW
-    "Planned" -> RequestFilter.PLANNED
-    "In progress", "Ready to release" -> RequestFilter.IN_PROGRESS
-    "Released" -> RequestFilter.COMPLETED
-    else -> null
-}
-
-private fun String.publicRequestLabel(): String = publicRequestFilter()?.title ?: this
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,6 +87,7 @@ public fun FeedbackThreadFeatureRequestScreen(
     onAddRequest: () -> Unit,
     modifier: Modifier = Modifier,
     externalUserId: String? = null,
+    customerTierProvider: (() -> FeedbackThreadCustomerTier?)? = null,
 ) {
     val context = LocalContext.current
     val voterId = remember(externalUserId) {
@@ -142,6 +138,7 @@ public fun FeedbackThreadFeatureRequestScreen(
                         requestId = request.id,
                         voted = !request.voted,
                         externalUserId = voterId,
+                        customerTier = customerTierProvider?.invoke(),
                     )
                     requests = requests.map { current ->
                         if (current.id == result.feedbackId) {
@@ -430,15 +427,15 @@ private fun FeatureRequestVoteButton(
 
 @Composable
 private fun FeatureRequestStatusBadge(status: String) {
-    val statusColor = when (status.publicRequestFilter()) {
-        RequestFilter.IN_REVIEW -> MaterialTheme.colorScheme.tertiary
-        RequestFilter.PLANNED -> MaterialTheme.colorScheme.secondary
-        RequestFilter.IN_PROGRESS -> MaterialTheme.colorScheme.primary
-        RequestFilter.COMPLETED -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    val statusColor = when (status.feedbackThreadRequestStage()) {
+        FeedbackThreadRequestStage.InReview -> MaterialTheme.colorScheme.tertiary
+        FeedbackThreadRequestStage.Planned -> MaterialTheme.colorScheme.secondary
+        FeedbackThreadRequestStage.InProgress -> MaterialTheme.colorScheme.primary
+        FeedbackThreadRequestStage.Completed -> MaterialTheme.colorScheme.primary
+        is FeedbackThreadRequestStage.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Text(
-        text = status.publicRequestLabel(),
+        text = status.feedbackThreadRequestLabel(),
         modifier = Modifier
             .background(statusColor.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
             .padding(horizontal = 8.dp, vertical = 3.dp),

@@ -266,6 +266,45 @@ public class FeedbackThreadClientTest {
     }
 
     @Test
+    public fun acceptsHttpsBaseUrlForAnyHost(): Unit = runBlocking {
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url -> FakeHttpURLConnection(url, 201, successResponse) },
+        )
+
+        client.submit(FeedbackThreadFeedbackSubmission(FeedbackThreadFeedbackKind.BUG, "Crash", "It crashed."))
+    }
+
+    @Test
+    public fun acceptsHttpBaseUrlOnlyForLoopbackHosts(): Unit = runBlocking {
+        for (baseUrl in listOf("http://localhost:8787", "http://127.0.0.1:8787", "http://[::1]:8787")) {
+            val client = FeedbackThreadClient(
+                configuration = FeedbackThreadConfiguration(baseUrl, "project-key", "android"),
+                connectionFactory = { url -> FakeHttpURLConnection(url, 201, successResponse) },
+            )
+
+            client.submit(FeedbackThreadFeedbackSubmission(FeedbackThreadFeedbackKind.BUG, "Crash", "It crashed."))
+        }
+    }
+
+    @Test
+    public fun rejectsHttpBaseUrlForNonLoopbackHosts(): Unit = runBlocking {
+        val client = FeedbackThreadClient(
+            FeedbackThreadConfiguration("http://example.com", "project-key", "android"),
+        )
+
+        try {
+            client.submit(FeedbackThreadFeedbackSubmission(FeedbackThreadFeedbackKind.BUG, "Crash", "It crashed."))
+            fail("Expected an invalid configuration error")
+        } catch (error: FeedbackThreadException.InvalidConfiguration) {
+            assertEquals(
+                "The FeedbackThread base URL must use HTTPS unless it points at localhost.",
+                error.message,
+            )
+        }
+    }
+
+    @Test
     public fun submitsThroughLiveStagingWhenConfigured(): Unit = runBlocking {
         val baseURL = System.getenv("FEEDBACKTHREAD_LIVE_BASE_URL")
             ?: return@runBlocking

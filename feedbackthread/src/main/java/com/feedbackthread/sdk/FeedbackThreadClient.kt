@@ -226,6 +226,9 @@ private data class FeedbackThreadHandlers(
     val setVote: suspend (String, Boolean, String, FeedbackThreadCustomerTier?) -> FeedbackThreadVoteResult,
 )
 
+/** Hosts that are trusted to be reached over plain HTTP (local development only). */
+private val loopbackHosts = setOf("localhost", "127.0.0.1", "::1")
+
 private class FeedbackThreadHTTPTransport(
     private val configuration: FeedbackThreadConfiguration,
     private val connectionFactory: (URL) -> HttpURLConnection,
@@ -384,6 +387,14 @@ private class FeedbackThreadHTTPTransport(
         }
         if (baseURI.scheme !in setOf("http", "https") || baseURI.host.isNullOrBlank()) {
             throw FeedbackThreadException.InvalidConfiguration("The FeedbackThread base URL must use HTTP or HTTPS.")
+        }
+        // java.net.URI keeps the brackets around an IPv6 literal host (e.g. "[::1]");
+        // strip them so "::1" compares equal to the bracketed form.
+        val host = baseURI.host?.lowercase()?.removeSurrounding("[", "]")
+        if (baseURI.scheme == "http" && host !in loopbackHosts) {
+            throw FeedbackThreadException.InvalidConfiguration(
+                "The FeedbackThread base URL must use HTTPS unless it points at localhost.",
+            )
         }
 
         val encodedKey = URLEncoder
