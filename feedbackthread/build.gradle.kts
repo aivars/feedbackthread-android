@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
-    id("maven-publish")
+    id("com.vanniktech.maven.publish")
 }
 
 group = "com.feedbackthread"
@@ -26,12 +26,6 @@ android {
     buildFeatures {
         compose = true
     }
-
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
-        }
-    }
 }
 
 kotlin {
@@ -53,45 +47,51 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 }
 
-afterEvaluate {
-    publishing {
-        publications {
-            create<MavenPublication>("release") {
-                from(components["release"])
+mavenPublishing {
+    coordinates("com.feedbackthread", "feedbackthread-android", project.version.toString())
+    publishToMavenCentral()
 
-                groupId = "com.feedbackthread"
-                artifactId = "feedbackthread-android"
-                version = project.version.toString()
+    // Sign only where a key is configured (signing.gnupg.keyName in the
+    // machine-level ~/.gradle/gradle.properties); JitPack and plain
+    // publishToMavenLocal consumers build unsigned.
+    if (providers.gradleProperty("signing.gnupg.keyName").isPresent) {
+        signAllPublications()
+    }
 
-                pom {
-                    name.set("FeedbackThread Android SDK")
-                    description.set(
-                        "Kotlin client plus native Compose feedback and feature-request " +
-                            "screens for the FeedbackThread feedback and feature-request platform.",
-                    )
-                    url.set("https://feedbackthread.com")
+    pom {
+        name.set("FeedbackThread Android SDK")
+        description.set(
+            "Kotlin client plus native Compose feedback and feature-request " +
+                "screens for the FeedbackThread feedback and feature-request platform.",
+        )
+        url.set("https://feedbackthread.com")
 
-                    licenses {
-                        license {
-                            name.set("MIT License")
-                            url.set("https://opensource.org/licenses/MIT")
-                        }
-                    }
-
-                    developers {
-                        developer {
-                            id.set("aivars")
-                            name.set("Aivars Meijers")
-                        }
-                    }
-
-                    scm {
-                        url.set("https://github.com/aivars/feedbackthread-android")
-                        connection.set("scm:git:https://github.com/aivars/feedbackthread-android.git")
-                        developerConnection.set("scm:git:ssh://git@github.com/aivars/feedbackthread-android.git")
-                    }
-                }
+        licenses {
+            license {
+                name.set("MIT License")
+                url.set("https://opensource.org/licenses/MIT")
             }
+        }
+
+        developers {
+            developer {
+                id.set("aivars")
+                name.set("Aivars Meijers")
+            }
+        }
+
+        scm {
+            url.set("https://github.com/aivars/feedbackthread-android")
+            connection.set("scm:git:https://github.com/aivars/feedbackthread-android.git")
+            developerConnection.set("scm:git:ssh://git@github.com/aivars/feedbackthread-android.git")
+        }
+    }
+}
+
+if (providers.gradleProperty("signing.gnupg.keyName").isPresent) {
+    plugins.withId("org.gradle.signing") {
+        extensions.configure<org.gradle.plugins.signing.SigningExtension>("signing") {
+            useGpgCmd()
         }
     }
 }
