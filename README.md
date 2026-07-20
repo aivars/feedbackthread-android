@@ -11,7 +11,7 @@ Native in-app feedback for Android: a drop-in Compose feature-request board with
 - ✍️ **Feedback form** — bug reports and feature requests straight into your triage inbox
 - 🚀 **Close the loop** — requests attached to a published release show a *Shipped in x.y.z* badge to the people who asked
 - 💎 **Paying-customer signal** — optionally tag submissions and votes with your billing state for revenue-aware prioritization
-- 🔒 **Privacy-first** — no emails or personal data collected; anonymous voter IDs stay on-device
+- 🔒 **Privacy-first** — no email or name is required; you control whether to pass an external user identifier; anonymous voter IDs stay on-device
 - 🪶 **Lean** — a coroutine client over `HttpURLConnection` + `kotlinx.serialization`, Compose screens, nothing else
 
 ## Requirements
@@ -44,7 +44,7 @@ includeBuild("<path-to>/sdk/android") {
 }
 ```
 
-A complete working consumer lives in [`examples/android`](https://github.com/aivars/loopline/tree/main/examples/android) in the product monorepo.
+A complete working consumer lives in [`example/`](./example).
 
 ## Quick start
 
