@@ -21,15 +21,10 @@ Native in-app feedback for Android: a drop-in Compose feature-request board with
 
 ## Installation
 
+The SDK is on Maven Central — no extra repository setup needed:
+
 ```kotlin
 implementation("com.feedbackthread:feedbackthread-android:0.2.1")
-```
-
-Maven Central publication is pending. Once this repository is public, JitPack works immediately:
-
-```kotlin
-// settings.gradle.kts repositories: maven("https://jitpack.io")
-implementation("com.github.aivars:feedbackthread-android:0.2.1")
 ```
 
 Alternatively, publish locally from this repository:
