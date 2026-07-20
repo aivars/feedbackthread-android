@@ -86,9 +86,9 @@ afterEvaluate {
                     }
 
                     scm {
-                        url.set("https://github.com/aivars/loopline")
-                        connection.set("scm:git:https://github.com/aivars/loopline.git")
-                        developerConnection.set("scm:git:ssh://git@github.com/aivars/loopline.git")
+                        url.set("https://github.com/aivars/feedbackthread-android")
+                        connection.set("scm:git:https://github.com/aivars/feedbackthread-android.git")
+                        developerConnection.set("scm:git:ssh://git@github.com/aivars/feedbackthread-android.git")
                     }
                 }
             }

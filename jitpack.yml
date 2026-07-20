@@ -1,0 +1,7 @@
+# JitPack build configuration for the feedbackthread-android mirror.
+# Once the repository is public, com.github.aivars:feedbackthread-android:<tag>
+# becomes installable with zero further publishing infrastructure.
+jdk:
+  - openjdk17
+install:
+  - ./gradlew :feedbackthread:publishToMavenLocal

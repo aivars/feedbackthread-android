@@ -25,7 +25,14 @@ Native in-app feedback for Android: a drop-in Compose feature-request board with
 implementation("com.feedbackthread:feedbackthread-android:0.2.1")
 ```
 
-Maven Central publication is pending. Until then, either publish locally from this repository:
+Maven Central publication is pending. Once this repository is public, JitPack works immediately:
+
+```kotlin
+// settings.gradle.kts repositories: maven("https://jitpack.io")
+implementation("com.github.aivars:feedbackthread-android:0.2.1")
+```
+
+Alternatively, publish locally from this repository:
 
 ```sh
 ./gradlew :feedbackthread:publishToMavenLocal   # then add mavenLocal() to your repositories
@@ -42,7 +49,7 @@ includeBuild("<path-to>/sdk/android") {
 }
 ```
 
-A complete working consumer lives in [`examples/android`](../../examples/android).
+A complete working consumer lives in [`examples/android`](https://github.com/aivars/loopline/tree/main/examples/android) in the product monorepo.
 
 ## Quick start
 

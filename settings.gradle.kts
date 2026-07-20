@@ -22,4 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "feedbackthread-android"
 include(":feedbackthread")
-project(":feedbackthread").projectDir = file("loopline")
+project(":feedbackthread").projectDir = file("feedbackthread")
