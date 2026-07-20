@@ -238,6 +238,113 @@ public class FeedbackThreadClientTest {
     }
 
     @Test
+    public fun loadsMyRequestsIncludingAPrivateSubmittedOneWithTheVoterIdentityHeader(): Unit = runBlocking {
+        lateinit var connection: FakeHttpURLConnection
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url ->
+                FakeHttpURLConnection(url, 200, myRequestsResponse).also { connection = it }
+            },
+        )
+
+        val myRequests = client.myRequests("user-123")
+
+        assertEquals("GET", connection.requestMethod)
+        assertEquals(
+            "https://example.com/v1/projects/project-key/my/requests",
+            connection.url.toString(),
+        )
+        assertEquals("user-123", connection.getRequestProperty("X-FeedbackThread-User"))
+        assertEquals(2, myRequests.size)
+        val pending = myRequests.first { it.id == "FDBK-pending" }
+        assertEquals("Submitted", pending.status)
+        assertEquals(FeedbackThreadRequestStage.PendingReview, pending.status.feedbackThreadRequestStage())
+        assertNull(pending.shippedInVersion)
+    }
+
+    @Test
+    public fun rejectsMyRequestsWithoutAStableUserId(): Unit = runBlocking {
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url ->
+                fail("A request should not be sent without an identity")
+                FakeHttpURLConnection(url, 500, "{}")
+            },
+        )
+
+        try {
+            client.myRequests("   ")
+            fail("Expected an invalid configuration error")
+        } catch (error: FeedbackThreadException.InvalidConfiguration) {
+            assertEquals("A stable user ID is required for my requests.", error.message)
+        }
+    }
+
+    @Test
+    public fun loadsMyUpdatesAndTheirUnreadCount(): Unit = runBlocking {
+        lateinit var connection: FakeHttpURLConnection
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url ->
+                FakeHttpURLConnection(url, 200, myUpdatesResponse).also { connection = it }
+            },
+        )
+
+        val result = client.myUpdates("user-123")
+
+        assertEquals("GET", connection.requestMethod)
+        assertEquals(
+            "https://example.com/v1/projects/project-key/my/updates",
+            connection.url.toString(),
+        )
+        assertEquals("user-123", connection.getRequestProperty("X-FeedbackThread-User"))
+        assertEquals(1, result.unreadCount)
+        assertEquals("FDBK-shipped", result.updates.first().id)
+        assertEquals("2.4.0", result.updates.first().shippedVersion)
+    }
+
+    @Test
+    public fun acknowledgesUpdatesAndReturnsTheFreshUnreadCount(): Unit = runBlocking {
+        lateinit var connection: FakeHttpURLConnection
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url ->
+                FakeHttpURLConnection(url, 200, """{"unreadCount":0}""").also { connection = it }
+            },
+        )
+
+        val unreadCount = client.acknowledgeUpdates(listOf("FDBK-shipped"), "user-123")
+
+        assertEquals("POST", connection.requestMethod)
+        assertEquals(
+            "https://example.com/v1/projects/project-key/my/updates/ack",
+            connection.url.toString(),
+        )
+        assertEquals("user-123", connection.getRequestProperty("X-FeedbackThread-User"))
+        assertEquals("application/json", connection.getRequestProperty("Content-Type"))
+        assertTrue(connection.writtenBody.contains("\"feedbackIds\":[\"FDBK-shipped\"]"))
+        assertEquals(0, unreadCount)
+    }
+
+    @Test
+    public fun rejectsAcknowledgingUpdatesWithNoIds(): Unit = runBlocking {
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url ->
+                fail("A request should not be sent with no ids")
+                FakeHttpURLConnection(url, 500, "{}")
+            },
+        )
+
+        try {
+            client.acknowledgeUpdates(emptyList(), "user-123")
+            fail("Expected an invalid configuration error")
+        } catch (error: FeedbackThreadException.InvalidConfiguration) {
+            assertEquals("At least one feedback ID is required to acknowledge updates.", error.message)
+        }
+    }
+
+    @Test
     public fun rejectsEmptyProjectKeyBeforeSending(): Unit = runBlocking {
         val client = FeedbackThreadClient(
             FeedbackThreadConfiguration("https://example.com", "  ", "android"),
@@ -378,6 +485,43 @@ public class FeedbackThreadClientTest {
             """{"feedbackId":"FDBK-request","votes":13,"voted":true}"""
         val removedVoteResponse: String =
             """{"feedbackId":"FDBK-request","votes":12,"voted":false}"""
+
+        val myRequestsResponse: String = """
+            {
+              "requests": [
+                {
+                  "id": "FDBK-my-request",
+                  "title": "Training complications",
+                  "status": "Planned",
+                  "createdAt": "2026-07-16T12:00:00.000Z",
+                  "voteCount": 3,
+                  "shippedInVersion": null
+                },
+                {
+                  "id": "FDBK-pending",
+                  "title": "Breathing reminders",
+                  "status": "Submitted",
+                  "createdAt": "2026-07-17T12:00:00.000Z",
+                  "voteCount": 1,
+                  "shippedInVersion": null
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val myUpdatesResponse: String = """
+            {
+              "updates": [
+                {
+                  "id": "FDBK-shipped",
+                  "title": "Health integration",
+                  "shippedVersion": "2.4.0",
+                  "publishedAt": "2026-07-16T12:00:00.000Z"
+                }
+              ],
+              "unreadCount": 1
+            }
+        """.trimIndent()
     }
 }
 

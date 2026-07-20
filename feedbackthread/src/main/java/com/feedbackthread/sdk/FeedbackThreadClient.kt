@@ -132,6 +132,40 @@ public data class FeedbackThreadVoteResult(
     public val voted: Boolean,
 )
 
+/**
+ * One of the caller's own feature-request cards, as returned by
+ * [FeedbackThreadClient.myRequests]. Unlike [FeedbackThreadFeatureRequest],
+ * this includes cards still in the private "Submitted" status - it's scoped
+ * to the presented identity, not to what the public board shows.
+ */
+@Serializable
+public data class FeedbackThreadMyRequest(
+    public val id: String,
+    public val title: String,
+    public val status: String,
+    public val createdAt: String,
+    public val voteCount: Int,
+    public val shippedInVersion: String? = null,
+)
+
+/**
+ * A shipped card of the caller's own that hasn't been acknowledged yet (see
+ * [FeedbackThreadClient.myUpdates]/[FeedbackThreadClient.acknowledgeUpdates]).
+ */
+@Serializable
+public data class FeedbackThreadMyUpdate(
+    public val id: String,
+    public val title: String,
+    public val shippedVersion: String,
+    public val publishedAt: String,
+)
+
+@Serializable
+public data class FeedbackThreadMyUpdatesResult(
+    public val updates: List<FeedbackThreadMyUpdate>,
+    public val unreadCount: Int,
+)
+
 public data class FeedbackThreadConfiguration(
     public val baseUrl: String,
     public val projectKey: String,
@@ -164,6 +198,13 @@ public class FeedbackThreadClient private constructor(
             setVote = { _, _, _, _ ->
                 throw FeedbackThreadException.InvalidConfiguration("This FeedbackThread client does not support voting.")
             },
+            myRequests = { emptyList() },
+            myUpdates = { FeedbackThreadMyUpdatesResult(emptyList(), 0) },
+            acknowledgeUpdates = { _, _ ->
+                throw FeedbackThreadException.InvalidConfiguration(
+                    "This FeedbackThread client does not support acknowledging updates.",
+                )
+            },
         ),
     )
 
@@ -171,11 +212,22 @@ public class FeedbackThreadClient private constructor(
         submissionHandler: suspend (FeedbackThreadFeedbackSubmission, String) -> FeedbackThreadFeedback,
         requestListHandler: suspend (String?) -> List<FeedbackThreadFeatureRequest>,
         voteHandler: suspend (String, Boolean, String, FeedbackThreadCustomerTier?) -> FeedbackThreadVoteResult,
+        myRequestsHandler: suspend (String) -> List<FeedbackThreadMyRequest> = { emptyList() },
+        myUpdatesHandler: suspend (String) -> FeedbackThreadMyUpdatesResult =
+            { FeedbackThreadMyUpdatesResult(emptyList(), 0) },
+        acknowledgeUpdatesHandler: suspend (List<String>, String) -> Int = { _, _ ->
+            throw FeedbackThreadException.InvalidConfiguration(
+                "This FeedbackThread client does not support acknowledging updates.",
+            )
+        },
     ) : this(
         FeedbackThreadHandlers(
             submit = submissionHandler,
             requests = requestListHandler,
             setVote = voteHandler,
+            myRequests = myRequestsHandler,
+            myUpdates = myUpdatesHandler,
+            acknowledgeUpdates = acknowledgeUpdatesHandler,
         ),
     )
 
@@ -205,6 +257,30 @@ public class FeedbackThreadClient private constructor(
         customerTier: FeedbackThreadCustomerTier? = null,
     ): FeedbackThreadVoteResult = handlers.setVote(requestId, voted, externalUserId, customerTier)
 
+    /**
+     * Every card [externalUserId] reported in the project, including ones
+     * still in the private "Submitted" status - closing the loop on the
+     * reporter's own backlog rather than only the public board.
+     */
+    public suspend fun myRequests(externalUserId: String): List<FeedbackThreadMyRequest> =
+        handlers.myRequests(externalUserId)
+
+    /**
+     * Shipped cards of [externalUserId]'s own that haven't been acknowledged
+     * yet. Pair with [acknowledgeUpdates] once the caller has shown them to
+     * the user.
+     */
+    public suspend fun myUpdates(externalUserId: String): FeedbackThreadMyUpdatesResult =
+        handlers.myUpdates(externalUserId)
+
+    /**
+     * Marks the given shipped cards as seen for [externalUserId]. Idempotent
+     * - acknowledging an already-acknowledged id is a no-op. Returns the
+     * unread count after the write so a badge can update immediately.
+     */
+    public suspend fun acknowledgeUpdates(ids: List<String>, externalUserId: String): Int =
+        handlers.acknowledgeUpdates(ids, externalUserId)
+
     private companion object {
         fun createHandlers(
             configuration: FeedbackThreadConfiguration,
@@ -215,6 +291,9 @@ public class FeedbackThreadClient private constructor(
                 submit = transport::submit,
                 requests = transport::requests,
                 setVote = transport::setVote,
+                myRequests = transport::myRequests,
+                myUpdates = transport::myUpdates,
+                acknowledgeUpdates = transport::acknowledgeUpdates,
             )
         }
     }
@@ -224,6 +303,9 @@ private data class FeedbackThreadHandlers(
     val submit: suspend (FeedbackThreadFeedbackSubmission, String) -> FeedbackThreadFeedback,
     val requests: suspend (String?) -> List<FeedbackThreadFeatureRequest>,
     val setVote: suspend (String, Boolean, String, FeedbackThreadCustomerTier?) -> FeedbackThreadVoteResult,
+    val myRequests: suspend (String) -> List<FeedbackThreadMyRequest>,
+    val myUpdates: suspend (String) -> FeedbackThreadMyUpdatesResult,
+    val acknowledgeUpdates: suspend (List<String>, String) -> Int,
 )
 
 /** Hosts that are trusted to be reached over plain HTTP (local development only). */
@@ -347,6 +429,73 @@ private class FeedbackThreadHTTPTransport(
         }
     }
 
+    suspend fun myRequests(externalUserId: String): List<FeedbackThreadMyRequest> = withContext(Dispatchers.IO) {
+        val userId = normalizedUserId(externalUserId)
+            ?: throw FeedbackThreadException.InvalidConfiguration("A stable user ID is required for my requests.")
+        val connection = connectionFactory(endpointURL("my/requests"))
+        try {
+            connection.requestMethod = "GET"
+            configureConnection(connection)
+            connection.setRequestProperty("X-FeedbackThread-User", userId)
+            val responseBody = responseBody(connection)
+            try {
+                json.decodeFromString<FeedbackThreadMyRequestsEnvelope>(responseBody).requests
+            } catch (error: SerializationException) {
+                throw FeedbackThreadException.InvalidResponse("FeedbackThread returned an unreadable response.", error)
+            }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    suspend fun myUpdates(externalUserId: String): FeedbackThreadMyUpdatesResult = withContext(Dispatchers.IO) {
+        val userId = normalizedUserId(externalUserId)
+            ?: throw FeedbackThreadException.InvalidConfiguration("A stable user ID is required for my updates.")
+        val connection = connectionFactory(endpointURL("my/updates"))
+        try {
+            connection.requestMethod = "GET"
+            configureConnection(connection)
+            connection.setRequestProperty("X-FeedbackThread-User", userId)
+            val responseBody = responseBody(connection)
+            try {
+                json.decodeFromString<FeedbackThreadMyUpdatesResult>(responseBody)
+            } catch (error: SerializationException) {
+                throw FeedbackThreadException.InvalidResponse("FeedbackThread returned an unreadable response.", error)
+            }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    suspend fun acknowledgeUpdates(ids: List<String>, externalUserId: String): Int = withContext(Dispatchers.IO) {
+        val userId = normalizedUserId(externalUserId)
+            ?: throw FeedbackThreadException.InvalidConfiguration("A stable user ID is required to acknowledge updates.")
+        if (ids.isEmpty()) {
+            throw FeedbackThreadException.InvalidConfiguration(
+                "At least one feedback ID is required to acknowledge updates.",
+            )
+        }
+        val connection = connectionFactory(endpointURL("my/updates/ack"))
+        try {
+            val payloadBytes = json.encodeToString(FeedbackThreadAckPayload(ids)).toByteArray(StandardCharsets.UTF_8)
+            connection.requestMethod = "POST"
+            configureConnection(connection)
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.setRequestProperty("X-FeedbackThread-User", userId)
+            connection.doOutput = true
+            connection.setFixedLengthStreamingMode(payloadBytes.size)
+            connection.outputStream.use { it.write(payloadBytes) }
+            val responseBody = responseBody(connection)
+            try {
+                json.decodeFromString<FeedbackThreadAckResult>(responseBody).unreadCount
+            } catch (error: SerializationException) {
+                throw FeedbackThreadException.InvalidResponse("FeedbackThread returned an unreadable response.", error)
+            }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     private fun configureConnection(connection: HttpURLConnection) {
         connection.connectTimeout = configuration.connectTimeoutMillis
         connection.readTimeout = configuration.readTimeoutMillis
@@ -429,6 +578,21 @@ private data class FeedbackThreadFeedbackEnvelope(
 @Serializable
 private data class FeedbackThreadRequestsEnvelope(
     val requests: List<FeedbackThreadFeatureRequest>,
+)
+
+@Serializable
+private data class FeedbackThreadMyRequestsEnvelope(
+    val requests: List<FeedbackThreadMyRequest>,
+)
+
+@Serializable
+private data class FeedbackThreadAckPayload(
+    val feedbackIds: List<String>,
+)
+
+@Serializable
+private data class FeedbackThreadAckResult(
+    val unreadCount: Int,
 )
 
 @Serializable

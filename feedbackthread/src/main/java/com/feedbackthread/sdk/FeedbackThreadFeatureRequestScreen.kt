@@ -428,6 +428,7 @@ private fun FeatureRequestVoteButton(
 @Composable
 private fun FeatureRequestStatusBadge(status: String) {
     val statusColor = when (status.feedbackThreadRequestStage()) {
+        FeedbackThreadRequestStage.PendingReview -> MaterialTheme.colorScheme.outline
         FeedbackThreadRequestStage.InReview -> MaterialTheme.colorScheme.tertiary
         FeedbackThreadRequestStage.Planned -> MaterialTheme.colorScheme.secondary
         FeedbackThreadRequestStage.InProgress -> MaterialTheme.colorScheme.primary
@@ -498,7 +499,11 @@ private fun RequestMessage(
     }
 }
 
-private fun anonymousVoterId(context: Context): String {
+// internal (not private): shared with FeedbackThreadMyRequestsScreen, which
+// needs the exact same identity-precedence rule (explicit externalUserId, or
+// this persisted anonymous id) so a submission/vote and a later "my
+// requests"/"my updates" lookup resolve to the same voter.
+internal fun anonymousVoterId(context: Context): String {
     val preferences = context.getSharedPreferences("feedbackthread_sdk", Context.MODE_PRIVATE)
     preferences.getString("anonymous_voter_id", null)?.let { return it }
     return UUID.randomUUID().toString().also {

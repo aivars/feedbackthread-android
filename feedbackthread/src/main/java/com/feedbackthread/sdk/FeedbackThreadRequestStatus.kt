@@ -8,6 +8,11 @@ package com.feedbackthread.sdk
  * from a board built against an older SDK.
  */
 internal sealed class FeedbackThreadRequestStage {
+    /**
+     * Submitted, not yet moderated - only ever seen by the reporter (see
+     * FeedbackThreadClient.myRequests), never on the public board.
+     */
+    internal data object PendingReview : FeedbackThreadRequestStage()
     internal data object InReview : FeedbackThreadRequestStage()
     internal data object Planned : FeedbackThreadRequestStage()
     internal data object InProgress : FeedbackThreadRequestStage()
@@ -17,6 +22,7 @@ internal sealed class FeedbackThreadRequestStage {
 
 /** Maps a raw feature-request status string to its public board stage. */
 internal fun String.feedbackThreadRequestStage(): FeedbackThreadRequestStage = when (this) {
+    "Submitted" -> FeedbackThreadRequestStage.PendingReview
     "Under review", "In review" -> FeedbackThreadRequestStage.InReview
     "Planned" -> FeedbackThreadRequestStage.Planned
     "In progress", "Ready to release" -> FeedbackThreadRequestStage.InProgress
@@ -29,6 +35,7 @@ internal fun String.feedbackThreadRequestStage(): FeedbackThreadRequestStage = w
  * raw status sensibly capitalized when the stage isn't recognized.
  */
 internal fun String.feedbackThreadRequestLabel(): String = when (val stage = feedbackThreadRequestStage()) {
+    FeedbackThreadRequestStage.PendingReview -> "Waiting for review"
     FeedbackThreadRequestStage.InReview -> "In review"
     FeedbackThreadRequestStage.Planned -> "Planned"
     FeedbackThreadRequestStage.InProgress -> "In progress"

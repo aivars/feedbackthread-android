@@ -6,12 +6,18 @@ import org.junit.Test
 public class FeedbackThreadRequestStatusTest {
     @Test
     public fun mapsKnownStatusesToTheirPublicBoardStage() {
+        assertEquals(FeedbackThreadRequestStage.PendingReview, "Submitted".feedbackThreadRequestStage())
         assertEquals(FeedbackThreadRequestStage.InReview, "Under review".feedbackThreadRequestStage())
         assertEquals(FeedbackThreadRequestStage.InReview, "In review".feedbackThreadRequestStage())
         assertEquals(FeedbackThreadRequestStage.Planned, "Planned".feedbackThreadRequestStage())
         assertEquals(FeedbackThreadRequestStage.InProgress, "In progress".feedbackThreadRequestStage())
         assertEquals(FeedbackThreadRequestStage.InProgress, "Ready to release".feedbackThreadRequestStage())
         assertEquals(FeedbackThreadRequestStage.Completed, "Released".feedbackThreadRequestStage())
+    }
+
+    @Test
+    public fun labelsPendingReviewHonestlyWithoutImplyingModerationHappened() {
+        assertEquals("Waiting for review", "Submitted".feedbackThreadRequestLabel())
     }
 
     @Test
