@@ -20,11 +20,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -51,6 +57,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import java.util.UUID
 import java.util.concurrent.CancellationException
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 private sealed interface RequestLoadPhase {
@@ -96,20 +103,34 @@ public fun FeedbackThreadFeatureRequestScreen(
     var votingIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var selectedFilter by rememberSaveable { mutableStateOf(RequestFilter.ALL) }
     var selectedRequestId by rememberSaveable { mutableStateOf<String?>(null) }
+    var showMyRequests by rememberSaveable { mutableStateOf(false) }
+    var unreadCount by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
     val visibleRequests = requests.filter { RequestFilter.ALL.includes(it.status) }
     val filteredRequests = visibleRequests.filter { selectedFilter.includes(it.status) }
     val selectedRequest = visibleRequests.firstOrNull { it.id == selectedRequestId }
 
+    // Best-effort: badging the toolbar icon is a nicety, not something that
+    // should ever surface an error or block the board from loading.
+    suspend fun refreshUnreadCount() {
+        unreadCount = runCatching { client.myUpdates(voterId).unreadCount }.getOrDefault(unreadCount)
+    }
+
     suspend fun loadRequests() {
         if (requests.isEmpty()) phase = RequestLoadPhase.Loading
-        try {
-            requests = client.requests(voterId)
-            phase = RequestLoadPhase.Loaded
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            phase = RequestLoadPhase.Failed(error.message ?: "Feature requests could not be loaded.")
+        coroutineScope {
+            // Fired alongside the request fetch rather than after it, so
+            // opening the board doesn't delay the badge any longer than it
+            // has to.
+            launch { refreshUnreadCount() }
+            try {
+                requests = client.requests(voterId)
+                phase = RequestLoadPhase.Loaded
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                phase = RequestLoadPhase.Failed(error.message ?: "Feature requests could not be loaded.")
+            }
         }
     }
 
@@ -125,6 +146,29 @@ public fun FeedbackThreadFeatureRequestScreen(
 
     BackHandler(enabled = selectedRequest != null) {
         selectedRequestId = null
+    }
+
+    if (showMyRequests) {
+        // The board currently delegates "add" to an external onAddRequest
+        // callback rather than internal navigation, so My Requests is shown
+        // via an internal state switch instead: this full-screen composable
+        // replaces the board until dismissed, with its own "Done" acting as
+        // the back affordance.
+        FeedbackThreadMyRequestsScreen(
+            client = client,
+            onDismiss = {
+                showMyRequests = false
+                scope.launch { refreshUnreadCount() }
+            },
+            modifier = modifier,
+            externalUserId = externalUserId,
+            onUnreadCountChange = { unreadCount = it },
+        )
+        BackHandler {
+            showMyRequests = false
+            scope.launch { refreshUnreadCount() }
+        }
+        return
     }
 
     val toggleVote: (FeedbackThreadFeatureRequest) -> Unit = { request ->
@@ -168,6 +212,21 @@ public fun FeedbackThreadFeatureRequestScreen(
                         TextButton(onClick = onDismiss) { Text("Done") }
                     } else {
                         TextButton(onClick = { selectedRequestId = null }) { Text("Back") }
+                    }
+                },
+                actions = {
+                    if (selectedRequest == null) {
+                        IconButton(onClick = { showMyRequests = true }) {
+                            BadgedBox(
+                                badge = {
+                                    if (unreadCount > 0) {
+                                        Badge { Text(if (unreadCount > 99) "99+" else unreadCount.toString()) }
+                                    }
+                                },
+                            ) {
+                                Icon(Icons.Default.Person, contentDescription = "My requests")
+                            }
+                        }
                     }
                 },
             )
@@ -327,6 +386,9 @@ private fun FeatureRequestRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                if (request.kind == FeedbackThreadFeedbackKind.BUG) {
+                    BugKindBadge()
+                }
                 FeatureRequestStatusBadge(request.status)
                 request.shippedInVersion?.let { version ->
                     ShippedInVersionBadge(version)
@@ -334,6 +396,21 @@ private fun FeatureRequestRow(
             }
         }
     }
+}
+
+@Composable
+private fun BugKindBadge() {
+    Text(
+        text = "Bug",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.error,
+        modifier = Modifier
+            .background(
+                MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+                RoundedCornerShape(50),
+            )
+            .padding(horizontal = 7.dp, vertical = 2.dp),
+    )
 }
 
 @Composable

@@ -126,6 +126,9 @@ public enum class FeedbackThreadRequestTarget {
 public data class FeedbackThreadFeatureRequest(
     public val id: String,
     public val title: String,
+    /** "Requests" or "Bugs" - accepted public bugs share the board process.
+     * Nullable so the SDK tolerates older servers that omit it. */
+    public val kind: FeedbackThreadFeedbackKind? = null,
     public val description: String,
     public val votes: Int,
     public val target: FeedbackThreadRequestTarget,

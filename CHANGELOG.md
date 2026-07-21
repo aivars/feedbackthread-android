@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.5
+
+One entry point, and bugs join the board.
+
+- The board is now the complete integration: My Requests lives behind a person icon in its top bar with an automatic unread-shipped badge (the board checks quietly on load). Hosts need exactly one screen; the standalone screens remain available.
+- Accepted public bugs now share the whole board process: they appear alongside feature requests with a "Bug" tag, are votable, and get shipped badges. Nothing becomes public without your moderation, same as requests.
+
+
 ## 0.3.4
 
 - Board redesign for reachability: "Suggest a feature" is now a full-width bottom button instead of a floating action button; the status filter chip row is unchanged and stays always visible.

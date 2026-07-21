@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.feedbackthread"
-version = "0.3.4"
+version = "0.3.5"
 
 android {
     namespace = "com.feedbackthread.sdk"
