@@ -28,6 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -44,6 +45,13 @@ private sealed interface SubmissionPhase {
     data class Failed(val message: String) : SubmissionPhase
 }
 
+/**
+ * A standalone "send feedback" screen: usable on its own (e.g. from a
+ * Settings screen) without the request board around it. Submissions are
+ * tied to the same on-device anonymous ID the board and My Requests use,
+ * unless an external ID is supplied - so a submission made from here still
+ * shows up in "My requests" and can receive shipped updates.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 public fun FeedbackThreadFeedbackScreen(
@@ -55,6 +63,10 @@ public fun FeedbackThreadFeedbackScreen(
     customerTierProvider: (() -> FeedbackThreadCustomerTier?)? = null,
     onSubmitted: (FeedbackThreadFeedback) -> Unit = {},
 ) {
+    val context = LocalContext.current
+    val voterId = remember(externalUserId) {
+        resolveVoterId(externalUserId) { anonymousVoterId(context) }
+    }
     var kind by remember { mutableStateOf(FeedbackThreadFeedbackKind.REQUEST) }
     var title by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
@@ -121,7 +133,10 @@ public fun FeedbackThreadFeedbackScreen(
                     FeedbackThreadFeedbackKind.entries.forEach { option ->
                         FilterChip(
                             selected = kind == option,
-                            onClick = { kind = option },
+                            onClick = {
+                                kind = option
+                                resubmissionKey.contentChanged()
+                            },
                             label = { Text(option.title) },
                         )
                     }
@@ -182,7 +197,7 @@ public fun FeedbackThreadFeedbackScreen(
                                         title = title.trim(),
                                         text = message.trim(),
                                         appVersion = appVersion,
-                                        externalUserId = externalUserId,
+                                        externalUserId = voterId,
                                         customerTier = customerTierProvider?.invoke(),
                                     ),
                                     idempotencyKey = idempotencyKey,

@@ -24,7 +24,7 @@ Native in-app feedback for Android: a drop-in Compose feature-request board with
 The SDK is on Maven Central — no extra repository setup needed:
 
 ```kotlin
-implementation("com.feedbackthread:feedbackthread-android:0.3.0")
+implementation("com.feedbackthread:feedbackthread-android:0.3.1")
 ```
 
 Alternatively, publish locally from this repository:
@@ -99,6 +99,37 @@ FeedbackThreadFeedbackSubmission(
 ```
 
 `FeedbackThreadCustomerTier` is `Free`, `Paying`, or `Custom("family")` — and omitted from the request entirely when left `null`.
+
+### Show users their own requests
+
+The board only ever shows moderated, public cards. `FeedbackThreadMyRequestsScreen` closes the loop for the person who submitted: it always shows their own cards, including ones still waiting for review that never appear anywhere public.
+
+```kotlin
+FeedbackThreadMyRequestsScreen(
+    client = feedbackThread,
+    onDismiss = onBack,
+    externalUserId = signedInUserId,   // optional; falls back to the same anonymous ID as the board
+    onUnreadCountChange = { unreadCount ->
+        // badge your own UI, e.g. a bottom-nav item
+    },
+)
+```
+
+It groups cards into **Waiting for review**, **In progress**, and **Shipped**, and auto-acknowledges shipped cards as soon as they're viewed.
+
+`onUnreadCountChange` only fires once the screen is opened — too late for a badge that should already be showing at launch. Call `myUpdates(externalUserId)` yourself on app start or foreground to get `unreadCount` ahead of time:
+
+```kotlin
+LaunchedEffect(Unit) {
+    // Works for anonymous users too: feedbackThreadVoterId() returns the
+    // SDK's persisted on-device ID when you don't pass your own.
+    val userId = feedbackThreadVoterId(context, signedInUserId)
+    runCatching { feedbackThread.myUpdates(userId) }
+        .onSuccess { badgeCount = it.unreadCount }
+}
+```
+
+The client exposes all three calls directly if you're building custom UI: `myRequests(externalUserId)`, `myUpdates(externalUserId)`, and `acknowledgeUpdates(ids, externalUserId)`.
 
 ### Use the client directly
 

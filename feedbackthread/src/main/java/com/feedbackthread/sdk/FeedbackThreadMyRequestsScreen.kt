@@ -67,7 +67,7 @@ public fun FeedbackThreadMyRequestsScreen(
 ) {
     val context = LocalContext.current
     val voterId = remember(externalUserId) {
-        externalUserId?.trim()?.takeIf { it.isNotEmpty() } ?: anonymousVoterId(context)
+        resolveVoterId(externalUserId) { anonymousVoterId(context) }
     }
     var myRequests by remember { mutableStateOf<List<FeedbackThreadMyRequest>>(emptyList()) }
     var phase by remember { mutableStateOf<MyRequestsLoadPhase>(MyRequestsLoadPhase.Loading) }
@@ -105,17 +105,18 @@ public fun FeedbackThreadMyRequestsScreen(
         load()
     }
 
-    val pendingReview = myRequests.filter { it.status.feedbackThreadRequestStage() == FeedbackThreadRequestStage.PendingReview }
-    val inProgress = myRequests.filter {
-        when (it.status.feedbackThreadRequestStage()) {
-            FeedbackThreadRequestStage.InReview,
-            FeedbackThreadRequestStage.Planned,
-            FeedbackThreadRequestStage.InProgress,
-            -> true
-            else -> false
-        }
+    val pendingReview = myRequests.filter {
+        it.status.feedbackThreadRequestStage().myRequestsSection() == FeedbackThreadMyRequestsSection.WAITING_FOR_REVIEW
     }
-    val shipped = myRequests.filter { it.status.feedbackThreadRequestStage() == FeedbackThreadRequestStage.Completed }
+    val inProgress = myRequests.filter {
+        it.status.feedbackThreadRequestStage().myRequestsSection() == FeedbackThreadMyRequestsSection.IN_PROGRESS
+    }
+    val shipped = myRequests.filter {
+        it.status.feedbackThreadRequestStage().myRequestsSection() == FeedbackThreadMyRequestsSection.SHIPPED
+    }
+    val closed = myRequests.filter {
+        it.status.feedbackThreadRequestStage().myRequestsSection() == FeedbackThreadMyRequestsSection.CLOSED
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -158,6 +159,7 @@ public fun FeedbackThreadMyRequestsScreen(
                     myRequestsSection("Waiting for review", pendingReview)
                     myRequestsSection("In progress", inProgress)
                     myRequestsSection("Shipped", shipped)
+                    myRequestsSection("Closed", closed)
                 }
             }
         }
@@ -215,6 +217,7 @@ private fun MyRequestStatusBadge(status: String) {
         FeedbackThreadRequestStage.Planned -> MaterialTheme.colorScheme.secondary
         FeedbackThreadRequestStage.InProgress -> MaterialTheme.colorScheme.primary
         FeedbackThreadRequestStage.Completed -> MaterialTheme.colorScheme.primary
+        FeedbackThreadRequestStage.Rejected -> MaterialTheme.colorScheme.error
         is FeedbackThreadRequestStage.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Text(

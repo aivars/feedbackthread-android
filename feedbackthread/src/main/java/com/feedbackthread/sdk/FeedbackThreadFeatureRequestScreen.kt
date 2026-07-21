@@ -91,7 +91,7 @@ public fun FeedbackThreadFeatureRequestScreen(
 ) {
     val context = LocalContext.current
     val voterId = remember(externalUserId) {
-        externalUserId?.trim()?.takeIf { it.isNotEmpty() } ?: anonymousVoterId(context)
+        resolveVoterId(externalUserId) { anonymousVoterId(context) }
     }
     var requests by remember { mutableStateOf<List<FeedbackThreadFeatureRequest>>(emptyList()) }
     var phase by remember { mutableStateOf<RequestLoadPhase>(RequestLoadPhase.Loading) }
@@ -433,6 +433,7 @@ private fun FeatureRequestStatusBadge(status: String) {
         FeedbackThreadRequestStage.Planned -> MaterialTheme.colorScheme.secondary
         FeedbackThreadRequestStage.InProgress -> MaterialTheme.colorScheme.primary
         FeedbackThreadRequestStage.Completed -> MaterialTheme.colorScheme.primary
+        FeedbackThreadRequestStage.Rejected -> MaterialTheme.colorScheme.error
         is FeedbackThreadRequestStage.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Text(
@@ -499,10 +500,11 @@ private fun RequestMessage(
     }
 }
 
-// internal (not private): shared with FeedbackThreadMyRequestsScreen, which
-// needs the exact same identity-precedence rule (explicit externalUserId, or
-// this persisted anonymous id) so a submission/vote and a later "my
-// requests"/"my updates" lookup resolve to the same voter.
+// internal (not private): shared with FeedbackThreadMyRequestsScreen and
+// FeedbackThreadFeedbackScreen (via resolveVoterId), which need the exact
+// same identity-precedence rule (explicit externalUserId, or this persisted
+// anonymous id) so a submission/vote and a later "my requests"/"my updates"
+// lookup resolve to the same voter.
 internal fun anonymousVoterId(context: Context): String {
     val preferences = context.getSharedPreferences("feedbackthread_sdk", Context.MODE_PRIVATE)
     preferences.getString("anonymous_voter_id", null)?.let { return it }

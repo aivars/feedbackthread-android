@@ -13,11 +13,17 @@ public class FeedbackThreadRequestStatusTest {
         assertEquals(FeedbackThreadRequestStage.InProgress, "In progress".feedbackThreadRequestStage())
         assertEquals(FeedbackThreadRequestStage.InProgress, "Ready to release".feedbackThreadRequestStage())
         assertEquals(FeedbackThreadRequestStage.Completed, "Released".feedbackThreadRequestStage())
+        assertEquals(FeedbackThreadRequestStage.Rejected, "Rejected".feedbackThreadRequestStage())
     }
 
     @Test
     public fun labelsPendingReviewHonestlyWithoutImplyingModerationHappened() {
         assertEquals("Waiting for review", "Submitted".feedbackThreadRequestLabel())
+    }
+
+    @Test
+    public fun labelsRejectedPlainly() {
+        assertEquals("Rejected", "Rejected".feedbackThreadRequestLabel())
     }
 
     @Test
@@ -32,5 +38,22 @@ public class FeedbackThreadRequestStatusTest {
     public fun sensiblyCapitalizesAnUnrecognizedStatusWithSeparators() {
         assertEquals("On Hold", "on_hold".feedbackThreadRequestLabel())
         assertEquals("Needs Triage", "NEEDS-TRIAGE".feedbackThreadRequestLabel())
+    }
+
+    @Test
+    public fun bucketsEveryStageIntoExactlyOneMyRequestsSection() {
+        assertEquals(
+            FeedbackThreadMyRequestsSection.WAITING_FOR_REVIEW,
+            FeedbackThreadRequestStage.PendingReview.myRequestsSection(),
+        )
+        assertEquals(FeedbackThreadMyRequestsSection.IN_PROGRESS, FeedbackThreadRequestStage.InReview.myRequestsSection())
+        assertEquals(FeedbackThreadMyRequestsSection.IN_PROGRESS, FeedbackThreadRequestStage.Planned.myRequestsSection())
+        assertEquals(FeedbackThreadMyRequestsSection.IN_PROGRESS, FeedbackThreadRequestStage.InProgress.myRequestsSection())
+        assertEquals(FeedbackThreadMyRequestsSection.SHIPPED, FeedbackThreadRequestStage.Completed.myRequestsSection())
+        assertEquals(FeedbackThreadMyRequestsSection.CLOSED, FeedbackThreadRequestStage.Rejected.myRequestsSection())
+        assertEquals(
+            FeedbackThreadMyRequestsSection.IN_PROGRESS,
+            FeedbackThreadRequestStage.Unknown("archived").myRequestsSection(),
+        )
     }
 }

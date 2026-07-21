@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1
+
+- One shared identity everywhere: the standalone feedback screen now submits with the same persisted anonymous voter ID the board and My Requests use, so anonymous submissions appear in My Requests and receive shipped updates. New public `feedbackThreadVoterId(context, externalUserId)` lets host apps badge with `myUpdates` at launch — signed-in or not.
+- My Requests adds a "Closed" section for rejected items and folds unknown statuses into "In progress" — no more silently blank screens.
+- Switching the feedback type resets the retry idempotency key, like editing the text already did.
+
+
 ## 0.3.0
 
 Close the loop for end users, and harden the drop-in surfaces.
