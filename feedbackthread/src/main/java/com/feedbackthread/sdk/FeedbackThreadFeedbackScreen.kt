@@ -130,7 +130,7 @@ public fun FeedbackThreadFeedbackScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    FeedbackThreadFeedbackKind.entries.forEach { option ->
+                    FeedbackThreadFeedbackKind.submittableEntries.forEach { option ->
                         FilterChip(
                             selected = kind == option,
                             onClick = {

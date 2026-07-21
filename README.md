@@ -24,7 +24,7 @@ Native in-app feedback for Android: a drop-in Compose feature-request board with
 The SDK is on Maven Central — no extra repository setup needed:
 
 ```kotlin
-implementation("com.feedbackthread:feedbackthread-android:0.3.2")
+implementation("com.feedbackthread:feedbackthread-android:0.3.3")
 ```
 
 Alternatively, publish locally from this repository:

@@ -31,6 +31,16 @@ public enum class FeedbackThreadFeedbackKind(public val title: String) {
 
     @SerialName("Reviews")
     REVIEW("Review"),
+    ;
+
+    public companion object {
+        /**
+         * The kinds an end user can pick in the drop-in feedback screen.
+         * REVIEW is deliberately absent: review-kind cards come from
+         * App Store / Google Play ingestion, not from in-app submission.
+         */
+        public val submittableEntries: List<FeedbackThreadFeedbackKind> = listOf(REQUEST, BUG)
+    }
 }
 
 /**

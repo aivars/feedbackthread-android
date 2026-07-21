@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.3
+
+- The feedback screen no longer offers "Review" as a submission type — review-kind cards come from App Store / Google Play ingestion, not in-app submission. Custom UI can use `FeedbackThreadFeedbackKind.submittableEntries`.
+
+
 ## 0.3.2
 
 One-line integration.
