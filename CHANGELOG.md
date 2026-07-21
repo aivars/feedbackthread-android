@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.4
+
+- Board redesign for reachability: "Suggest a feature" is now a full-width bottom button instead of a floating action button; the status filter chip row is unchanged and stays always visible.
+
+
 ## 0.3.3
 
 - The feedback screen no longer offers "Review" as a submission type — review-kind cards come from App Store / Google Play ingestion, not in-app submission. Custom UI can use `FeedbackThreadFeedbackKind.submittableEntries`.
