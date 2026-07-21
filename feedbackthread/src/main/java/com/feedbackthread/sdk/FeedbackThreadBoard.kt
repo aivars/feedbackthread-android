@@ -86,7 +86,7 @@ private enum class RequestFilter(val title: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-public fun FeedbackThreadFeatureRequestScreen(
+public fun FeedbackThreadBoard(
     client: FeedbackThreadClient,
     onDismiss: () -> Unit,
     onAddRequest: () -> Unit,
@@ -600,7 +600,7 @@ internal fun anonymousVoterId(context: Context): String {
 
 @Preview(showBackground = true)
 @Composable
-private fun FeedbackThreadFeatureRequestScreenPreview() {
+private fun FeedbackThreadBoardPreview() {
     val previewRequests = listOf(
         FeedbackThreadFeatureRequest(
             id = "FDBK-1",
@@ -635,7 +635,7 @@ private fun FeedbackThreadFeatureRequestScreenPreview() {
         ),
     )
     MaterialTheme {
-        FeedbackThreadFeatureRequestScreen(
+        FeedbackThreadBoard(
             client = FeedbackThreadClient(
                 submissionHandler = { _, _ -> error("Not used in this preview") },
                 requestListHandler = { previewRequests },

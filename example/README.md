@@ -30,7 +30,7 @@ composable:
 
 - **Request a feature** — `FeedbackThreadFeedbackScreen`. A short form
   (kind, title, details) that posts to the feedback endpoint.
-- **Feature requests** — `FeedbackThreadFeatureRequestScreen`. The moderated,
+- **Feature requests** — `FeedbackThreadBoard`. The moderated,
   votable request list; its "add" action switches back to the first tab.
 
 Both share one `FeedbackThreadClient` built from `ExampleConfig.configuration`.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+
+**Breaking**: `FeedbackThreadFeatureRequestScreen` is now `FeedbackThreadBoard` — the name finally matches what it is: the complete drop-in surface (vote-sorted requests and bugs, submission, My Requests with unread badge). No deprecation shim; update call sites with a find-and-replace. Standalone screens are unchanged and documented under Advanced.
+
+
 ## 0.3.5
 
 One entry point, and bugs join the board.

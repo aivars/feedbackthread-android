@@ -20,7 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.feedbackthread.sdk.FeedbackThreadClient
-import com.feedbackthread.sdk.FeedbackThreadFeatureRequestScreen
+import com.feedbackthread.sdk.FeedbackThreadBoard
 import com.feedbackthread.sdk.FeedbackThreadFeedbackScreen
 
 /** One client for the whole app; screens are stateless and just borrow it. */
@@ -60,7 +60,7 @@ private fun FeedbackThreadExampleApp() {
                 appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
             )
         } else {
-            FeedbackThreadFeatureRequestScreen(
+            FeedbackThreadBoard(
                 client = client,
                 onDismiss = {},
                 onAddRequest = { tab = 0 },

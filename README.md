@@ -24,7 +24,7 @@ Native in-app feedback for Android: a drop-in Compose feature-request board with
 The SDK is on Maven Central — no extra repository setup needed:
 
 ```kotlin
-implementation("com.feedbackthread:feedbackthread-android:0.3.5")
+implementation("com.feedbackthread:feedbackthread-android:0.4.0")
 ```
 
 Alternatively, publish locally from this repository:
@@ -54,29 +54,18 @@ Grab your project key from the dashboard (**SDK setup**). It's a public, low-pri
 val feedbackThread = FeedbackThreadClient(projectKey = BuildConfig.FEEDBACKTHREAD_PROJECT_KEY)
 ```
 
-### Show the feature-request board
+Present `FeedbackThreadBoard` and you're done — it's the complete integration:
 
 ```kotlin
-FeedbackThreadFeatureRequestScreen(
+FeedbackThreadBoard(
     client = feedbackThread,
     externalUserId = signedInUserId,   // optional; anonymous ID used otherwise
-    onAddRequest = openFeedbackForm,
+    onAddRequest = { showFeedbackForm = true },   // present FeedbackThreadFeedbackScreen — see Advanced below
     onDismiss = onBack,
 )
 ```
 
-Users see approved requests, filter by status (In review · Planned · In progress · Completed), vote with accessible touch targets, and get a **Shipped in x.y.z** badge on anything you've released. Only Android-visible requests appear.
-
-### Show the feedback form
-
-```kotlin
-FeedbackThreadFeedbackScreen(
-    client = feedbackThread,
-    onDismiss = onBack,
-)
-```
-
-Every submission carries an idempotency key, so a retried request never creates a duplicate.
+One screen gives users a vote-sorted board of requests and bugs with status filters (In review · Planned · In progress · Completed) and **Shipped in x.y.z** badges, a **Suggest a feature** button (wired to `onAddRequest`), and a **My requests** tab with an unread badge that closes the loop on their own cards — all built in. Only Android-visible requests appear.
 
 ### Tell FeedbackThread who pays
 
@@ -92,6 +81,21 @@ FeedbackThreadFeedbackSubmission(
 ```
 
 `FeedbackThreadCustomerTier` is `Free`, `Paying`, or `Custom("family")` — and omitted from the request entirely when left `null`.
+
+## Advanced: standalone surfaces
+
+`FeedbackThreadBoard` is a complete integration on its own, but its pieces are also available individually for contextual placements — e.g. a "Report a bug" row in your settings screen that jumps straight to the form instead of the full board. Each surface below is fully supported as a standalone screen.
+
+### Show the feedback form
+
+```kotlin
+FeedbackThreadFeedbackScreen(
+    client = feedbackThread,
+    onDismiss = onBack,
+)
+```
+
+Every submission carries an idempotency key, so a retried request never creates a duplicate.
 
 ### Show users their own requests
 
