@@ -167,12 +167,20 @@ public data class FeedbackThreadMyUpdatesResult(
 )
 
 public data class FeedbackThreadConfiguration(
-    public val baseUrl: String,
+    public val baseUrl: String = DEFAULT_BASE_URL,
     public val projectKey: String,
-    public val source: String,
+    public val source: String = DEFAULT_SOURCE,
     public val connectTimeoutMillis: Int = 10_000,
     public val readTimeoutMillis: Int = 15_000,
-)
+) {
+    public companion object {
+        /** The hosted FeedbackThread API; override only for local development. */
+        public const val DEFAULT_BASE_URL: String = "https://api.feedbackthread.com"
+
+        /** What this SDK reports as the feedback source. */
+        public const val DEFAULT_SOURCE: String = "android"
+    }
+}
 
 public sealed class FeedbackThreadException(message: String, cause: Throwable? = null) : Exception(message, cause) {
     public class InvalidConfiguration internal constructor(message: String) : FeedbackThreadException(message)
@@ -234,6 +242,17 @@ public class FeedbackThreadClient private constructor(
     public constructor(configuration: FeedbackThreadConfiguration) : this(
         createHandlers(configuration) { url -> url.openConnection() as HttpURLConnection },
     )
+
+    /**
+     * The one-line integration: everything except the project key has a
+     * sensible default (hosted API URL, "android" source, and the host
+     * app's version attached by the drop-in screens automatically).
+     *
+     * ```
+     * val feedbackThread = FeedbackThreadClient(projectKey = BuildConfig.FEEDBACKTHREAD_PROJECT_KEY)
+     * ```
+     */
+    public constructor(projectKey: String) : this(FeedbackThreadConfiguration(projectKey = projectKey))
 
     internal constructor(
         configuration: FeedbackThreadConfiguration,

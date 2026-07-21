@@ -26,3 +26,18 @@ public class FeedbackThreadIdentityTest {
         assertEquals("anon-id", resolveVoterId("   ") { "anon-id" })
     }
 }
+
+class FeedbackThreadConfigurationDefaultTest {
+    @org.junit.Test
+    fun `defaults point at the hosted API with the android source`() {
+        val configuration = FeedbackThreadConfiguration(projectKey = "ft_pk_test")
+        org.junit.Assert.assertEquals("https://api.feedbackthread.com", configuration.baseUrl)
+        org.junit.Assert.assertEquals("android", configuration.source)
+        org.junit.Assert.assertEquals("ft_pk_test", configuration.projectKey)
+    }
+
+    @org.junit.Test
+    fun `one-line client constructor builds a working client`() {
+        FeedbackThreadClient(projectKey = "ft_pk_test")
+    }
+}

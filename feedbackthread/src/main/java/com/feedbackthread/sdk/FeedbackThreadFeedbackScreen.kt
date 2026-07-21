@@ -196,7 +196,7 @@ public fun FeedbackThreadFeedbackScreen(
                                         kind = kind,
                                         title = title.trim(),
                                         text = message.trim(),
-                                        appVersion = appVersion,
+                                        appVersion = appVersion ?: feedbackThreadAppVersion(context),
                                         externalUserId = voterId,
                                         customerTier = customerTierProvider?.invoke(),
                                     ),

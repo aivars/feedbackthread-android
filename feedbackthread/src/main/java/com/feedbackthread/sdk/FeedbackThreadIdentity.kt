@@ -24,3 +24,18 @@ internal fun resolveVoterId(externalUserId: String?, anonymousVoterId: () -> Str
  */
 public fun feedbackThreadVoterId(context: android.content.Context, externalUserId: String? = null): String =
     resolveVoterId(externalUserId) { anonymousVoterId(context) }
+
+/**
+ * The host app's version name and code, e.g. `"2.4.1 (317)"` - the value the
+ * drop-in feedback screen attaches to submissions by default so integrators
+ * never have to plumb it through themselves.
+ */
+public fun feedbackThreadAppVersion(context: android.content.Context): String = try {
+    val info = context.packageManager.getPackageInfo(context.packageName, 0)
+    val name = info.versionName ?: "unknown"
+    @Suppress("DEPRECATION")
+    val code = if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
+    "$name ($code)"
+} catch (_: Exception) {
+    "unknown"
+}

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.2
+
+One-line integration.
+
+- `FeedbackThreadClient(projectKey = ...)` — convenience constructor; the hosted API URL and "android" source are now defaults on `FeedbackThreadConfiguration`.
+- The drop-in feedback screen attaches the host app's version automatically (versionName + versionCode); pass `appVersion` only to override. `feedbackThreadAppVersion(context)` is public for custom UI.
+
+
 ## 0.3.1
 
 - One shared identity everywhere: the standalone feedback screen now submits with the same persisted anonymous voter ID the board and My Requests use, so anonymous submissions appear in My Requests and receive shipped updates. New public `feedbackThreadVoterId(context, externalUserId)` lets host apps badge with `myUpdates` at launch — signed-in or not.

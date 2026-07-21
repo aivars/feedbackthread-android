@@ -24,7 +24,7 @@ Native in-app feedback for Android: a drop-in Compose feature-request board with
 The SDK is on Maven Central — no extra repository setup needed:
 
 ```kotlin
-implementation("com.feedbackthread:feedbackthread-android:0.3.1")
+implementation("com.feedbackthread:feedbackthread-android:0.3.2")
 ```
 
 Alternatively, publish locally from this repository:
@@ -51,13 +51,7 @@ A complete working consumer lives in [`example/`](./example).
 Grab your project key from the dashboard (**SDK setup**). It's a public, low-privilege identifier — safe to ship in your APK. It can submit feedback, read the moderated request feed, and vote; it cannot touch your private dashboard data.
 
 ```kotlin
-val feedbackThread = FeedbackThreadClient(
-    FeedbackThreadConfiguration(
-        baseUrl = "https://api.feedbackthread.com",
-        projectKey = BuildConfig.FEEDBACKTHREAD_PROJECT_KEY,
-        source = "android",
-    ),
-)
+val feedbackThread = FeedbackThreadClient(projectKey = BuildConfig.FEEDBACKTHREAD_PROJECT_KEY)
 ```
 
 ### Show the feature-request board
@@ -78,7 +72,6 @@ Users see approved requests, filter by status (In review · Planned · In progre
 ```kotlin
 FeedbackThreadFeedbackScreen(
     client = feedbackThread,
-    appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
     onDismiss = onBack,
 )
 ```
