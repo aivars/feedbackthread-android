@@ -18,16 +18,7 @@ Native in-app feedback for Android: a drop-in Compose feature-request board with
 
 `FeedbackThreadBoard` respects your Material 3 theme, light and dark:
 
-<p>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/board-dark.png">
-    <img src="docs/board-light.png" alt="FeedbackThreadBoard on Android — vote-sorted feature requests with status filters and Shipped badges" width="320">
-  </picture>
-  <picture>
-    <source media="(prefers-color-scheme: light)" srcset="docs/board-light.png">
-    <img src="docs/board-dark.png" alt="FeedbackThreadBoard on Android in the opposite theme" width="320">
-  </picture>
-</p>
+<img src="docs/board-themes.png" alt="FeedbackThreadBoard on Android in light and dark mode - vote-sorted feature requests with status filters and Shipped badges" width="760">
 
 ## Requirements
 
