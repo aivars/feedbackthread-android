@@ -14,6 +14,21 @@ Native in-app feedback for Android: a drop-in Compose feature-request board with
 - 🔒 **Privacy-first** — no email or name is required; you control whether to pass an external user identifier; anonymous voter IDs stay on-device
 - 🪶 **Lean** — a coroutine client over `HttpURLConnection` + `kotlinx.serialization`, Compose screens, nothing else
 
+## What your users see
+
+`FeedbackThreadBoard` respects your Material 3 theme, light and dark:
+
+<p>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/board-dark.png">
+    <img src="docs/board-light.png" alt="FeedbackThreadBoard on Android — vote-sorted feature requests with status filters and Shipped badges" width="320">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="docs/board-light.png">
+    <img src="docs/board-dark.png" alt="FeedbackThreadBoard on Android in the opposite theme" width="320">
+  </picture>
+</p>
+
 ## Requirements
 
 - minSdk 26 (Android 8.0) · compileSdk 35

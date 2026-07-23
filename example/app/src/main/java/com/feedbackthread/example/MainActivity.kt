@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -45,7 +46,9 @@ class MainActivity : ComponentActivity() {
 private fun FeedbackThreadExampleApp() {
     var tab by rememberSaveable { mutableStateOf(0) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    // statusBarsPadding keeps the tab row below the system status bar —
+    // without it the tabs render underneath the clock and become untappable.
+    Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
         TabRow(selectedTabIndex = tab) {
             Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Request a feature") })
             Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Feature requests") })
