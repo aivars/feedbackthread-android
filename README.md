@@ -152,6 +152,12 @@ The opt-in live integration test runs when `FEEDBACKTHREAD_LIVE_BASE_URL` and `F
 
 The SDK is the in-app half of FeedbackThread: feedback lands in a keyboard-driven triage inbox, becomes cards on your roadmap, ships in tracked releases — and your AI agent can work the whole backlog over MCP. Learn more at [feedbackthread.com](https://feedbackthread.com).
 
+## Contributing
+
+This repository is where the Android SDK is developed, and pull requests are
+merged here. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to run the tests and
+for the one invariant worth knowing before you touch status handling.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
