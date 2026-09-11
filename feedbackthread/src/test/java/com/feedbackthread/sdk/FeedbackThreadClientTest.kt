@@ -16,6 +16,46 @@ import org.junit.Test
 
 public class FeedbackThreadClientTest {
     @Test
+    public fun readsConversationPolicyWithoutPrivateCredentials(): Unit = runBlocking {
+        lateinit var connection: FakeHttpURLConnection
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration(projectKey = "project-key"),
+            connectionFactory = { url ->
+                FakeHttpURLConnection(url, 200, """{"privateRepliesEnabled":true,"notificationsEnabled":true,"publicCommentsEnabled":false,"futureFlag":true}""").also { connection = it }
+            },
+        )
+        assertEquals(FeedbackThreadConversationSettings(true, true, false), client.conversationSettings())
+        assertEquals("/v1/projects/project-key/chat/settings", connection.url.path)
+        assertEquals("GET", connection.requestMethod)
+        assertNull(connection.getRequestProperty("X-FeedbackThread-Customer"))
+        assertNull(connection.getRequestProperty("X-FeedbackThread-User"))
+    }
+
+    @Test
+    public fun rejectsIncompleteConversationPolicyRatherThanAssumingEnabled(): Unit = runBlocking {
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration(projectKey = "project-key"),
+            connectionFactory = { url -> FakeHttpURLConnection(url, 200, """{"privateRepliesEnabled":true}""") },
+        )
+        try {
+            client.conversationSettings()
+            fail("Expected malformed settings to fail")
+        } catch (_: FeedbackThreadException.InvalidResponse) { }
+    }
+
+    @Test
+    public fun reportsOlderServersWithoutConversationPolicy(): Unit = runBlocking {
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration(projectKey = "project-key"),
+            connectionFactory = { url -> FakeHttpURLConnection(url, 404, """{"error":{"code":"not_found","message":"Not available"}}""") },
+        )
+        try {
+            client.conversationSettings()
+            fail("Expected server error")
+        } catch (error: FeedbackThreadException.Server) { assertEquals(404, error.statusCode) }
+    }
+
+    @Test
     public fun submitsDocumentedPayloadAndIdempotencyKey(): Unit = runBlocking {
         lateinit var connection: FakeHttpURLConnection
         val client = FeedbackThreadClient(

@@ -30,7 +30,7 @@ Native in-app feedback for Android: a drop-in Compose feature-request board with
 The SDK is on Maven Central — no extra repository setup needed:
 
 ```kotlin
-implementation("com.feedbackthread:feedbackthread-android:0.4.0")
+implementation("com.feedbackthread:feedbackthread-android:0.4.1")
 ```
 
 Alternatively, publish locally from this repository:
@@ -161,3 +161,18 @@ for the one invariant worth knowing before you touch status handling.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Conversation service compatibility (0.4.1)
+
+Existing integrations keep working without changes. `client.conversationSettings()`
+reads the service's `FeedbackThreadConversationSettings`: private replies and
+notifications are enabled; public comments follow project settings and default off.
+Call this only when your application needs the policy; existing screens do not
+make new requests automatically. Older/self-hosted servers without the endpoint
+return the existing `FeedbackThreadException.Server` (404).
+
+This version does not add a conversation inbox, comment composer, secure customer
+sessions, or Android push delivery. A true service flag is project policy, not a
+claim of SDK support or device permission. Do not expose private threads using
+an external user ID; they require separate secure customer credentials. For full
+conversation integration available today, see [Swift 0.5.0](https://github.com/aivars/feedbackthread-swift).

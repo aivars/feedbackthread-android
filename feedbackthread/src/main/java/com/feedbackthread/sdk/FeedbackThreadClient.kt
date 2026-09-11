@@ -145,6 +145,14 @@ public data class FeedbackThreadVoteResult(
     public val voted: Boolean,
 )
 
+/** Project policy. These flags do not imply this SDK implements conversation UI or push delivery. */
+@Serializable
+public data class FeedbackThreadConversationSettings(
+    public val privateRepliesEnabled: Boolean,
+    public val notificationsEnabled: Boolean,
+    public val publicCommentsEnabled: Boolean,
+)
+
 /**
  * One of the caller's own feature-request cards, as returned by
  * [FeedbackThreadClient.myRequests]. Unlike [FeedbackThreadFeatureRequest],
@@ -313,6 +321,9 @@ public class FeedbackThreadClient private constructor(
     public suspend fun acknowledgeUpdates(ids: List<String>, externalUserId: String): Int =
         handlers.acknowledgeUpdates(ids, externalUserId)
 
+    /** Read project policy without starting a private session or changing existing screens. */
+    public suspend fun conversationSettings(): FeedbackThreadConversationSettings = handlers.conversationSettings()
+
     private companion object {
         fun createHandlers(
             configuration: FeedbackThreadConfiguration,
@@ -320,6 +331,7 @@ public class FeedbackThreadClient private constructor(
         ): FeedbackThreadHandlers {
             val transport = FeedbackThreadHTTPTransport(configuration, connectionFactory)
             return FeedbackThreadHandlers(
+                conversationSettings = transport::conversationSettings,
                 submit = transport::submit,
                 requests = transport::requests,
                 setVote = transport::setVote,
@@ -332,6 +344,9 @@ public class FeedbackThreadClient private constructor(
 }
 
 private data class FeedbackThreadHandlers(
+    val conversationSettings: suspend () -> FeedbackThreadConversationSettings = {
+        throw FeedbackThreadException.InvalidConfiguration("This custom client does not support conversation settings.")
+    },
     val submit: suspend (FeedbackThreadFeedbackSubmission, String) -> FeedbackThreadFeedback,
     val requests: suspend (String?) -> List<FeedbackThreadFeatureRequest>,
     val setVote: suspend (String, Boolean, String, FeedbackThreadCustomerTier?) -> FeedbackThreadVoteResult,
@@ -350,6 +365,22 @@ private class FeedbackThreadHTTPTransport(
     private val json = Json {
         ignoreUnknownKeys = true
         explicitNulls = false
+    }
+
+    suspend fun conversationSettings(): FeedbackThreadConversationSettings = withContext(Dispatchers.IO) {
+        val connection = connectionFactory(endpointURL("chat/settings"))
+        try {
+            connection.requestMethod = "GET"
+            configureConnection(connection)
+            val body = responseBody(connection)
+            try {
+                json.decodeFromString<FeedbackThreadConversationSettings>(body)
+            } catch (error: SerializationException) {
+                throw FeedbackThreadException.InvalidResponse("FeedbackThread returned unreadable conversation settings.", error)
+            }
+        } finally {
+            connection.disconnect()
+        }
     }
 
     suspend fun submit(

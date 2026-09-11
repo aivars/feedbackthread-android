@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1 — 2026-09-11
+
+- Add typed `conversationSettings()` discovery for project reply, notification and public-comment policy.
+- Existing Compose screens, client constructors, feedback, votes and shipped updates keep their behavior. No dependency or minimum Android version change.
+- This is a compatibility release. Native conversation UI, secure customer sessions and FCM delivery are not included; full conversations currently ship in the Swift SDK.
+
+
 ## 0.4.0
 
 **Breaking**: `FeedbackThreadFeatureRequestScreen` is now `FeedbackThreadBoard` — the name finally matches what it is: the complete drop-in surface (vote-sorted requests and bugs, submission, My Requests with unread badge). No deprecation shim; update call sites with a find-and-replace. Standalone screens are unchanged and documented under Advanced.
