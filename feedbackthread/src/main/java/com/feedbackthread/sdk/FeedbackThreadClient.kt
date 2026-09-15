@@ -167,6 +167,7 @@ public data class FeedbackThreadMyRequest(
     public val createdAt: String,
     public val voteCount: Int,
     public val shippedInVersion: String? = null,
+    public val conversationAvailable: Boolean = false,
 )
 
 /**
@@ -193,6 +194,7 @@ public data class FeedbackThreadConfiguration(
     public val source: String = DEFAULT_SOURCE,
     public val connectTimeoutMillis: Int = 10_000,
     public val readTimeoutMillis: Int = 15_000,
+    internal val customerSessionProvider: (() -> FeedbackThreadCustomerSession)? = null,
 ) {
     public companion object {
         /** The hosted FeedbackThread API; override only for local development. */
@@ -321,6 +323,20 @@ public class FeedbackThreadClient private constructor(
     public suspend fun acknowledgeUpdates(ids: List<String>, externalUserId: String): Int =
         handlers.acknowledgeUpdates(ids, externalUserId)
 
+    internal fun withConversationSession(provider: () -> FeedbackThreadCustomerSession): FeedbackThreadClient {
+        val configuration = handlers.configuration ?: throw FeedbackThreadException.InvalidConfiguration("Conversations require an HTTP client.")
+        val current = createHandlers(configuration.copy(customerSessionProvider = provider), handlers.connectionFactory)
+        return FeedbackThreadClient(current.copy(
+            myRequests = { id -> (handlers.myRequests(id).map { it.copy(conversationAvailable=false) } + current.myRequests(id)).associateBy { it.id }.values.sortedByDescending { it.createdAt } },
+            myUpdates = { id ->
+                val legacy=handlers.myUpdates(id); val latest=current.myUpdates(id)
+                val overlap=legacy.updates.map { it.id }.toSet().intersect(latest.updates.map { it.id }.toSet()).size
+                FeedbackThreadMyUpdatesResult((legacy.updates+latest.updates).distinctBy { it.id },legacy.unreadCount+latest.unreadCount-overlap)
+            },
+            acknowledgeUpdates = { ids,id -> handlers.acknowledgeUpdates(ids,id)+current.acknowledgeUpdates(ids,id) },
+        ))
+    }
+
     /** Read project policy without starting a private session or changing existing screens. */
     public suspend fun conversationSettings(): FeedbackThreadConversationSettings = handlers.conversationSettings()
 
@@ -331,6 +347,8 @@ public class FeedbackThreadClient private constructor(
         ): FeedbackThreadHandlers {
             val transport = FeedbackThreadHTTPTransport(configuration, connectionFactory)
             return FeedbackThreadHandlers(
+                configuration = configuration,
+                connectionFactory = connectionFactory,
                 conversationSettings = transport::conversationSettings,
                 submit = transport::submit,
                 requests = transport::requests,
@@ -344,6 +362,8 @@ public class FeedbackThreadClient private constructor(
 }
 
 private data class FeedbackThreadHandlers(
+    val connectionFactory: (URL) -> HttpURLConnection = { it.openConnection() as HttpURLConnection },
+    val configuration: FeedbackThreadConfiguration? = null,
     val conversationSettings: suspend () -> FeedbackThreadConversationSettings = {
         throw FeedbackThreadException.InvalidConfiguration("This custom client does not support conversation settings.")
     },
@@ -395,7 +415,7 @@ private class FeedbackThreadHTTPTransport(
                 title = submission.title,
                 text = submission.text,
                 appVersion = submission.appVersion,
-                externalUserId = submission.externalUserId,
+                externalUserId = configuration.customerSessionProvider?.invoke()?.externalUserId ?: submission.externalUserId,
                 customerTier = submission.customerTier,
             ),
         )
@@ -404,6 +424,7 @@ private class FeedbackThreadHTTPTransport(
 
         try {
             connection.requestMethod = "POST"
+            configureConnection(connection)
             connection.connectTimeout = configuration.connectTimeoutMillis
             connection.readTimeout = configuration.readTimeoutMillis
             connection.doOutput = true
@@ -560,6 +581,8 @@ private class FeedbackThreadHTTPTransport(
     }
 
     private fun configureConnection(connection: HttpURLConnection) {
+        connection.instanceFollowRedirects = false
+        configuration.customerSessionProvider?.invoke()?.let { connection.setRequestProperty("X-FeedbackThread-Customer", it.token) }
         connection.connectTimeout = configuration.connectTimeoutMillis
         connection.readTimeout = configuration.readTimeoutMillis
         connection.setRequestProperty("Accept", "application/json")
@@ -575,10 +598,11 @@ private class FeedbackThreadHTTPTransport(
             }.getOrNull() ?: "FeedbackThread returned HTTP $statusCode."
             throw FeedbackThreadException.Server(statusCode, message)
         }
+        configuration.customerSessionProvider?.invoke() // Discard responses after logout.
         return responseBody
     }
 
-    private fun normalizedUserId(value: String?): String? = value?.trim()?.takeIf { it.isNotEmpty() }
+    private fun normalizedUserId(value: String?): String? = configuration.customerSessionProvider?.invoke()?.externalUserId ?: value?.trim()?.takeIf { it.isNotEmpty() }
 
     private fun endpointURL(path: String = "feedback"): URL {
         val baseUrl = configuration.baseUrl.trim().trimEnd('/')

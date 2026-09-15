@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Add secure guest conversations and Compose reply/comment screens with foreground live updates, pagination, read markers, follow/mute and removal.
+- Preserve legacy requests while attaching new feedback to a secure session.
+- Add native FCM registration and notification-tap routing; host apps own permissions and Firebase setup.
+- Use Keystore-backed encrypted credentials and close sessions permanently on logout.
+
 ## 0.4.1 — 2026-09-11
 
 - Add typed `conversationSettings()` discovery for project reply, notification and public-comment policy.
