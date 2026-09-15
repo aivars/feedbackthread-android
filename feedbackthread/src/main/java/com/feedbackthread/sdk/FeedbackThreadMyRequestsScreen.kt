@@ -194,6 +194,10 @@ private fun MyRequestRow(request: FeedbackThreadMyRequest) {
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
+        val conversations = LocalFeedbackThreadConversations.current
+        if (request.conversationAvailable && conversations != null) {
+            TextButton(onClick = { conversations.open(FeedbackThreadConversationRoute(request.id, "private")) }) { Text("Replies") }
+        }
         Text(
             text = request.title,
             style = MaterialTheme.typography.titleMedium,

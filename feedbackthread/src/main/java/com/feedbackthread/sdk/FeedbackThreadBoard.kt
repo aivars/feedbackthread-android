@@ -37,6 +37,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -427,6 +428,11 @@ private fun FeatureRequestDetail(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         item {
+            val conversations = LocalFeedbackThreadConversations.current
+            val conversationState = conversations?.state?.collectAsState()?.value
+            if (conversationState?.publicCommentsEnabled == true) {
+                TextButton(onClick = { conversations.open(FeedbackThreadConversationRoute(request.id, "public")) }) { Text("Comments") }
+            }
             Text(
                 text = request.title,
                 style = MaterialTheme.typography.headlineSmall,
