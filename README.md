@@ -30,7 +30,7 @@ Native in-app feedback for Android: a drop-in Compose feature-request board with
 The SDK is on Maven Central — no extra repository setup needed:
 
 ```kotlin
-implementation("com.feedbackthread:feedbackthread-android:0.4.1")
+implementation("com.feedbackthread:feedbackthread-android:0.5.0")
 ```
 
 Alternatively, publish locally from this repository:
@@ -171,18 +171,16 @@ Call this only when your application needs the policy; existing screens do not
 make new requests automatically. Older/self-hosted servers without the endpoint
 return the existing `FeedbackThreadException.Server` (404).
 
-This version does not add a conversation inbox, comment composer, secure customer
-sessions, or Android push delivery. A true service flag is project policy, not a
-claim of SDK support or device permission. Do not expose private threads using
-an external user ID; they require separate secure customer credentials. For full
-conversation integration available today, see [Swift 0.5.0](https://github.com/aivars/feedbackthread-swift).
+Project policy does not grant device notification permission. Private threads
+require secure customer credentials; an external user ID is not authentication.
 
-## Replies and public comments (unreleased)
+## Replies and public comments (0.5.0)
 
-The implementation on this branch adds secure guest sessions, private replies,
-public comment threads, history pagination, read markers, follow/mute controls,
-message removal and live unread state. It requires the matching server update;
-these APIs are not part of the published 0.4.1 artifact yet.
+Version 0.5.0 adds secure guest sessions, private replies, public comment threads,
+history pagination, read markers, follow/mute, removal and live unread state.
+Requires the FeedbackThread server update released on 2026-09-15.
+Physical-device push delivery has not been verified in a host app; validate your
+Firebase configuration, permission flow and notification routing before rollout.
 
 Keep one manager per host-app account in your app model:
 

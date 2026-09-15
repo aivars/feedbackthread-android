@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — 2026-09-15
 
 - Add secure guest conversations and Compose reply/comment screens with foreground live updates, pagination, read markers, follow/mute and removal.
 - Preserve legacy requests while attaching new feedback to a secure session.
