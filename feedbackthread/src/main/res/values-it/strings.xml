@@ -89,6 +89,15 @@
         <item quantity="other">Rimuovi il voto, %1$d voti</item>
     </plurals>
 
+    <!-- The vote button's label. %1$d is the request's vote count; the filled triangle means the user has voted. -->
+    <string name="feedbackthread_vote_button_voted">▲ %1$d</string>
+    <!-- The vote button's label. %1$d is the request's vote count; the outline triangle means the user has not voted. -->
+    <string name="feedbackthread_vote_button_not_voted">△ %1$d</string>
+    <!-- Badge on the board's My requests button. %1$d is the number of requests with an unread update. -->
+    <string name="feedbackthread_unread_badge">%1$d</string>
+    <!-- The same badge once there are more unread updates than it can show. %1$d is the largest count it shows (99), so it reads "99+". -->
+    <string name="feedbackthread_unread_badge_overflow">%1$d+</string>
+
     <!-- Feedback form -->
 
     <!-- Title of the feedback form. -->
