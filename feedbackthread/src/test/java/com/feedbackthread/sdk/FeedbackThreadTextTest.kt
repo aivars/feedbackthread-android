@@ -5,6 +5,7 @@ import com.feedbackthread.sdk.FeedbackThreadStringResources.italian
 import com.feedbackthread.sdk.FeedbackThreadStringResources.stringName
 import java.io.IOException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 public class FeedbackThreadTextTest {
@@ -92,5 +93,49 @@ public class FeedbackThreadTextTest {
         assertEquals("Review", FeedbackThreadFeedbackKind.REVIEW.title)
         assertEquals("Richiesta", italian.strings.getValue(stringName(FeedbackThreadFeedbackKind.REQUEST.localizedTitle)))
         assertEquals("Recensione", italian.strings.getValue(stringName(FeedbackThreadFeedbackKind.REVIEW.localizedTitle)))
+    }
+
+    @Test
+    public fun theVoteButtonReadsTheSameInEnglishAndItalian() {
+        for (file in listOf(english, italian)) {
+            assertEquals("▲ 12", file.render(voteButtonText(12, isVoted = true)))
+            assertEquals("△ 12", file.render(voteButtonText(12, isVoted = false)))
+            assertEquals("△ 0", file.render(voteButtonText(0, isVoted = false)))
+            // No thousands separator, as before: 1234 stays 1234.
+            assertEquals("▲ 1234", file.render(voteButtonText(1234, isVoted = true)))
+        }
+    }
+
+    @Test
+    public fun theUnreadBadgeCapsAtNinetyNinePlus() {
+        for (file in listOf(english, italian)) {
+            assertEquals("0", file.render(unreadBadgeText(0)))
+            assertEquals("7", file.render(unreadBadgeText(7)))
+            assertEquals("99", file.render(unreadBadgeText(99)))
+            assertEquals("99+", file.render(unreadBadgeText(100)))
+            assertEquals("99+", file.render(unreadBadgeText(5000)))
+        }
+    }
+
+    @Test
+    public fun theCountsFollowTheLocaleNotTheDefaultFormatting() {
+        // %d writes the locale's own digits - what Kotlin's toString() never did.
+        val arabic = java.util.Locale.forLanguageTag("ar-EG")
+        assertEquals("▲ ١٢", String.format(arabic, english.strings.getValue("feedbackthread_vote_button_voted"), 12))
+        assertEquals("٩٩+", String.format(arabic, english.strings.getValue("feedbackthread_unread_badge_overflow"), UNREAD_BADGE_CAP))
+    }
+
+    @Test
+    public fun theBoardsCountsAreFormatResourcesWithAnIntegerPlaceholder() {
+        for (file in listOf(english, italian)) {
+            for (name in listOf(
+                "feedbackthread_vote_button_voted",
+                "feedbackthread_vote_button_not_voted",
+                "feedbackthread_unread_badge",
+                "feedbackthread_unread_badge_overflow",
+            )) {
+                assertTrue("$name", file.strings.getValue(name).contains("%1\$d"))
+            }
+        }
     }
 }

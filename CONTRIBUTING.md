@@ -16,8 +16,12 @@ here directly.
 - Kotlin with Compose and kotlinx.serialization
 
 The module is `:feedbackthread`, published as `com.feedbackthread`. Runtime
-dependencies are deliberately minimal — coroutines and kotlinx.serialization —
-and additions need a good reason.
+dependencies are deliberately minimal, because every one lands in each host
+app's dependency graph. Beyond Compose and AndroidX, they are coroutines,
+kotlinx.serialization, and OkHttp. OkHttp is there for one thing only, the
+WebSocket behind live conversation updates; all other requests go over
+`HttpURLConnection`. Additions need a good reason, and a new dependency should
+not take over what the existing ones already do.
 
 ## Running the tests
 

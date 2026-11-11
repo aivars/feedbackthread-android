@@ -7,14 +7,17 @@ it just calls the two public screens.
 ## Open in Android Studio
 
 ```sh
-cd sdk/android/example
+cd example   # from the repository root
 ```
 
 Open this directory in Android Studio (or run `./gradlew :app:assembleDebug`
 from the command line). `settings.gradle.kts` pulls in the SDK with
-`includeBuild("..")`, so there is nothing to publish first —
-Android Studio resolves `com.feedbackthread:feedbackthread-android:0.2.0`
-straight from `../` (the `sdk/android` module).
+`includeBuild("..")`, so there is nothing to publish first — Gradle resolves
+`com.feedbackthread:feedbackthread-android` straight from `../` (this
+repository's `:feedbackthread` module), whatever version the dependency in
+`app/build.gradle.kts` names. To try a published release instead, remove the
+`includeBuild` block; the version in that dependency (currently 0.6.0) is then
+the one downloaded from Maven Central.
 
 ## Set a real project key
 
@@ -48,5 +51,5 @@ when calling `FeedbackThreadClient.submit` or `.setVote` yourself.
 
 Matches the SDK: Kotlin 2.1.0, AGP 8.7.3, Gradle 8.11.1, JDK 17
 (`jvmToolchain(17)`), `compileSdk`/`minSdk` 35/26. The Gradle wrapper is
-copied from `sdk/android` so both projects always build with the same Gradle
+copied from the repository root so both projects build with the same Gradle
 version.

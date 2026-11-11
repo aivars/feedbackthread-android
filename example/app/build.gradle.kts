@@ -33,11 +33,11 @@ kotlin {
 
 dependencies {
     // Resolved from the local composite build (see settings.gradle.kts),
-    // which substitutes this coordinate with the ../ (sdk/android) project.
-    // Once the SDK is published, drop the includeBuild and this becomes a
-    // normal mavenCentral() dependency at the same coordinate:
-    // implementation("com.feedbackthread:feedbackthread-android:0.2.1")
-    implementation("com.feedbackthread:feedbackthread-android:0.2.1")
+    // which substitutes this coordinate with the ../ (repository root)
+    // :feedbackthread project; the version is ignored while that
+    // substitution is in place. Remove the includeBuild to resolve the
+    // published release from mavenCentral() instead.
+    implementation("com.feedbackthread:feedbackthread-android:0.6.0")
 
     implementation("androidx.activity:activity-compose:1.10.0")
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))

@@ -59,6 +59,15 @@ internal class FeedbackThreadStringFile(file: File, private val locale: Locale) 
     /** Each `<string>`'s text exactly as written in the file. */
     val rawStrings: Map<String, String>
 
+    /**
+     * The `<string>`s marked `translatable="false"`: product names and the
+     * like, which belong in the default file only. A subset of [strings]'s keys.
+     */
+    val nonTranslatable: Set<String>
+
+    /** The names a translation of this file must define: [strings] without [nonTranslatable]. */
+    val translatableStrings: Set<String> get() = strings.keys - nonTranslatable
+
     /** Each `<plurals>`'s items, quantity to value (escapes undone). */
     val plurals: Map<String, Map<String, String>>
 
@@ -70,6 +79,9 @@ internal class FeedbackThreadStringFile(file: File, private val locale: Locale) 
         val children = (0 until root.childNodes.length).map { root.childNodes.item(it) }.filterIsInstance<Element>()
         rawStrings = children.filter { it.tagName == "string" }.associate { it.getAttribute("name") to it.textContent }
         strings = rawStrings.mapValues { unescaped(it.value) }
+        nonTranslatable = children.filter { it.tagName == "string" && it.getAttribute("translatable") == "false" }
+            .map { it.getAttribute("name") }
+            .toSet()
         rawPlurals = children.filter { it.tagName == "plurals" }.associate { element ->
             val items = element.getElementsByTagName("item")
             element.getAttribute("name") to (0 until items.length).map { items.item(it) as Element }

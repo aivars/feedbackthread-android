@@ -235,7 +235,7 @@ public fun FeedbackThreadBoard(
                             BadgedBox(
                                 badge = {
                                     if (unreadCount > 0) {
-                                        Badge { Text(if (unreadCount > 99) "99+" else unreadCount.toString()) }
+                                        Badge { Text(unreadBadgeText(unreadCount).resolve()) }
                                     }
                                 },
                             ) {
@@ -481,7 +481,7 @@ private fun FeatureRequestDetail(
                         }
                     }
                     Text(
-                        text = "Android",
+                        text = stringResource(R.string.feedbackthread_platform_name),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -506,6 +506,27 @@ private fun FeatureRequestDetail(
         }
     }
 }
+
+/** The largest unread count the board's My requests badge shows as a number; above it, "99+". */
+internal const val UNREAD_BADGE_CAP = 99
+
+/**
+ * The text of the My requests badge: the unread count, or the cap with a plus
+ * sign above it. Both are format resources, so the digits are written in the
+ * user's locale by the resource formatter.
+ */
+internal fun unreadBadgeText(unreadCount: Int): FeedbackThreadText.Resource =
+    if (unreadCount > UNREAD_BADGE_CAP) {
+        FeedbackThreadText.Resource(R.string.feedbackthread_unread_badge_overflow, listOf(UNREAD_BADGE_CAP))
+    } else {
+        FeedbackThreadText.Resource(R.string.feedbackthread_unread_badge, listOf(unreadCount))
+    }
+
+/** The text of the vote button: a filled triangle once the user has voted, an outline before. */
+internal fun voteButtonText(votes: Int, isVoted: Boolean): FeedbackThreadText.Resource = FeedbackThreadText.Resource(
+    if (isVoted) R.string.feedbackthread_vote_button_voted else R.string.feedbackthread_vote_button_not_voted,
+    listOf(votes),
+)
 
 @Composable
 private fun FeatureRequestVoteButton(
@@ -533,7 +554,7 @@ private fun FeatureRequestVoteButton(
         if (isVoting) {
             CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.width(18.dp))
         } else {
-            Text(if (isVoted) "▲ $votes" else "△ $votes")
+            Text(voteButtonText(votes, isVoted).resolve())
         }
     }
 }

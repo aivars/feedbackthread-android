@@ -38,7 +38,8 @@ public class FeedbackThreadLocalizationTest {
     @Test
     public fun everyTranslationHasEveryEnglishResourceAndNothingElse() {
         for ((language, file) in translations) {
-            assertEquals("$language strings", english.strings.keys, file.strings.keys)
+            // Strings marked translatable="false" live in the default file only.
+            assertEquals("$language strings", english.translatableStrings, file.strings.keys)
             assertEquals("$language plurals", english.plurals.keys, file.plurals.keys)
         }
     }
@@ -101,8 +102,36 @@ public class FeedbackThreadLocalizationTest {
         assertTrue(stringIds.isNotEmpty())
         assertTrue(pluralIds.isNotEmpty())
         for ((language, file) in files) {
-            stringIds.keys.forEach { assertTrue("$language lacks string $it", it in file.strings) }
+            stringIds.keys.filter { it !in english.nonTranslatable || language == "en" }
+                .forEach { assertTrue("$language lacks string $it", it in file.strings) }
             pluralIds.keys.forEach { assertTrue("$language lacks plurals $it", it in file.plurals) }
+        }
+    }
+
+    @Test
+    public fun onlyProductNamesAreLeftUntranslated() {
+        // The one string the SDK doesn't translate: the platform name under a request's status.
+        assertEquals(setOf("feedbackthread_platform_name"), english.nonTranslatable)
+        assertEquals("Android", english.strings.getValue("feedbackthread_platform_name"))
+        for ((language, file) in translations) {
+            assertTrue("$language translates a non-translatable string", file.strings.keys.none { it in english.nonTranslatable })
+            assertTrue("$language marks a string non-translatable", file.nonTranslatable.isEmpty())
+        }
+    }
+
+    @Test
+    public fun theHardcodedNumberAndBadgeTextLivesInResources() {
+        val keys = setOf(
+            "feedbackthread_vote_button_voted",
+            "feedbackthread_vote_button_not_voted",
+            "feedbackthread_unread_badge",
+            "feedbackthread_unread_badge_overflow",
+            "feedbackthread_platform_name",
+        )
+        assertTrue(stringIds.keys.containsAll(keys))
+        for ((language, file) in files) {
+            keys.filter { it in english.translatableStrings || language == "en" }
+                .forEach { assertTrue("$language lacks $it", it in file.strings) }
         }
     }
 
