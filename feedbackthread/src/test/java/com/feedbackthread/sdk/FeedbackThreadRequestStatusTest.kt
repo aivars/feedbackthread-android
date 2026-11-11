@@ -1,5 +1,7 @@
 package com.feedbackthread.sdk
 
+import com.feedbackthread.sdk.FeedbackThreadStringResources.english
+import com.feedbackthread.sdk.FeedbackThreadStringResources.italian
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -17,13 +19,41 @@ public class FeedbackThreadRequestStatusTest {
     }
 
     @Test
+    public fun labelsEveryKnownStatusWithItsResourceAndUnchangedEnglish() {
+        // Wire status -> the label resource it maps to, and the English label
+        // the SDK showed before it was localized: English must not move.
+        val labels = listOf(
+            Triple("Submitted", R.string.feedbackthread_status_waiting_for_review, "Waiting for review"),
+            Triple("Under review", R.string.feedbackthread_status_in_review, "In review"),
+            Triple("In review", R.string.feedbackthread_status_in_review, "In review"),
+            Triple("Planned", R.string.feedbackthread_status_planned, "Planned"),
+            Triple("In progress", R.string.feedbackthread_status_in_progress, "In progress"),
+            Triple("Ready to release", R.string.feedbackthread_status_in_progress, "In progress"),
+            Triple("Released", R.string.feedbackthread_status_completed, "Completed"),
+            Triple("Rejected", R.string.feedbackthread_status_rejected, "Rejected"),
+        )
+
+        for ((status, resource, englishLabel) in labels) {
+            val label = status.feedbackThreadRequestLabel()
+            assertEquals(status, FeedbackThreadText.Resource(resource), label)
+            assertEquals(status, englishLabel, english.render(label))
+        }
+    }
+
+    @Test
     public fun labelsPendingReviewHonestlyWithoutImplyingModerationHappened() {
-        assertEquals("Waiting for review", "Submitted".feedbackThreadRequestLabel())
+        val label = "Submitted".feedbackThreadRequestLabel()
+
+        assertEquals("Waiting for review", english.render(label))
+        assertEquals("In attesa di revisione", italian.render(label))
     }
 
     @Test
     public fun labelsRejectedPlainly() {
-        assertEquals("Rejected", "Rejected".feedbackThreadRequestLabel())
+        val label = "Rejected".feedbackThreadRequestLabel()
+
+        assertEquals("Rejected", english.render(label))
+        assertEquals("Rifiutata", italian.render(label))
     }
 
     @Test
@@ -31,13 +61,13 @@ public class FeedbackThreadRequestStatusTest {
         val status = "archived"
 
         assertEquals(FeedbackThreadRequestStage.Unknown("archived"), status.feedbackThreadRequestStage())
-        assertEquals("Archived", status.feedbackThreadRequestLabel())
+        assertEquals(FeedbackThreadText.Verbatim("Archived"), status.feedbackThreadRequestLabel())
     }
 
     @Test
     public fun sensiblyCapitalizesAnUnrecognizedStatusWithSeparators() {
-        assertEquals("On Hold", "on_hold".feedbackThreadRequestLabel())
-        assertEquals("Needs Triage", "NEEDS-TRIAGE".feedbackThreadRequestLabel())
+        assertEquals(FeedbackThreadText.Verbatim("On Hold"), "on_hold".feedbackThreadRequestLabel())
+        assertEquals(FeedbackThreadText.Verbatim("Needs Triage"), "NEEDS-TRIAGE".feedbackThreadRequestLabel())
     }
 
     @Test

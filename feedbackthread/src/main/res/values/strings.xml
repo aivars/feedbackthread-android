@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The FeedbackThread SDK's end-user copy, English (the default).
+
+    Every name carries the feedbackthread_ prefix: library resources are merged
+    into the host app, and an unprefixed name would be overridden by the app's own.
+    Wire values (request statuses, serialized names, paths, headers) never live
+    here, even where a label reads the same as one.
+-->
+<resources>
+    <!-- Shared -->
+
+    <!-- Top-bar button that closes the board or My requests, and the button under the "feedback sent" confirmation. -->
+    <string name="feedbackthread_done">Done</string>
+    <!-- Top-bar button that leaves a request's detail view or a conversation. -->
+    <string name="feedbackthread_back">Back</string>
+    <!-- Top-bar button that closes the feedback form without sending; also dismisses the "remove message" dialog. -->
+    <string name="feedbackthread_cancel">Cancel</string>
+    <!-- Button that retries a failed load (board, My requests, a conversation). -->
+    <string name="feedbackthread_try_again">Try again</string>
+    <!-- Badge on a request that shipped. %1$s is the app version it shipped in, e.g. "2.4.0". -->
+    <string name="feedbackthread_shipped_in">✓ Shipped in %1$s</string>
+    <!-- Button on a My requests row that opens its private conversation, and that conversation's title. -->
+    <string name="feedbackthread_replies">Replies</string>
+    <!-- Button on a request's detail view that opens its public comments, and that conversation's title. -->
+    <string name="feedbackthread_comments">Comments</string>
+
+    <!-- Status labels: the badge on every request, and the board's status filter chips. -->
+
+    <!-- Status of a request submitted but not moderated yet; only its reporter sees it. -->
+    <string name="feedbackthread_status_waiting_for_review">Waiting for review</string>
+    <!-- Status of a request being reviewed (an adjective qualifying "request"). -->
+    <string name="feedbackthread_status_in_review">In review</string>
+    <!-- Status of a request scheduled for a future release (an adjective qualifying "request"). -->
+    <string name="feedbackthread_status_planned">Planned</string>
+    <!-- Status of a request being worked on (an adjective qualifying "request"). -->
+    <string name="feedbackthread_status_in_progress">In progress</string>
+    <!-- Status of a request that shipped (an adjective qualifying "request"). -->
+    <string name="feedbackthread_status_completed">Completed</string>
+    <!-- Status of a request declined during moderation; only its reporter sees it. -->
+    <string name="feedbackthread_status_rejected">Rejected</string>
+
+    <!-- Board -->
+
+    <!-- Title of the feature-request board. -->
+    <string name="feedbackthread_board_title">Feature requests</string>
+    <!-- Title of one request's detail view on the board. -->
+    <string name="feedbackthread_board_detail_title">Request</string>
+    <!-- Full-width button at the bottom of the board that opens the feedback form. -->
+    <string name="feedbackthread_board_suggest_feature">Suggest a feature</string>
+    <!-- Shown while the board loads for the first time. -->
+    <string name="feedbackthread_board_loading">Loading requests…</string>
+    <!-- Title shown when the board could not load. -->
+    <string name="feedbackthread_board_load_failed_title">Couldn’t load requests</string>
+    <!-- Message shown when the board could not load and the error carries no text of its own. -->
+    <string name="feedbackthread_board_load_failed_fallback">Feature requests could not be loaded.</string>
+    <!-- Error shown when a vote could not be saved and the error carries no text of its own. -->
+    <string name="feedbackthread_board_vote_failed_fallback">Your vote could not be saved.</string>
+    <!-- Title of the board when no request has been approved yet. -->
+    <string name="feedbackthread_board_empty_title">No approved requests yet</string>
+    <!-- Message under the empty board's title: new requests are moderated before they appear. -->
+    <string name="feedbackthread_board_empty_message">Share an idea and it will appear after review.</string>
+    <!-- Button on the empty board that opens the feedback form. -->
+    <string name="feedbackthread_board_add_request">Add request</string>
+    <!-- Board filter chip that shows every request (feminine plural in languages that qualify "requests"). -->
+    <string name="feedbackthread_filter_all">All</string>
+    <!-- A board filter chip. %1$s is the filter's name (All, or a status label), %2$d the number of requests it shows. -->
+    <string name="feedbackthread_filter_chip">%1$s (%2$d)</string>
+    <!-- Title shown when the "All" filter has no request. -->
+    <string name="feedbackthread_board_empty_filter_all">No requests</string>
+    <!-- Title shown when the "In review" filter has no request. -->
+    <string name="feedbackthread_board_empty_filter_in_review">No requests in review</string>
+    <!-- Title shown when the "Planned" filter has no request. -->
+    <string name="feedbackthread_board_empty_filter_planned">No planned requests</string>
+    <!-- Title shown when the "In progress" filter has no request. -->
+    <string name="feedbackthread_board_empty_filter_in_progress">No requests in progress</string>
+    <!-- Title shown when the "Completed" filter has no request. -->
+    <string name="feedbackthread_board_empty_filter_completed">No completed requests</string>
+    <!-- Message under an empty filter's title. -->
+    <string name="feedbackthread_board_empty_filter_message">Choose another status to see more requests.</string>
+    <!-- Screen-reader description of the vote button on a request the user has not voted for. %1$d is the request's vote count. -->
+    <plurals name="feedbackthread_vote_description">
+        <item quantity="one">Vote, %1$d vote</item>
+        <item quantity="other">Vote, %1$d votes</item>
+    </plurals>
+    <!-- Screen-reader description of the vote button on a request the user has voted for. %1$d is the request's vote count. -->
+    <plurals name="feedbackthread_remove_vote_description">
+        <item quantity="one">Remove vote, %1$d vote</item>
+        <item quantity="other">Remove vote, %1$d votes</item>
+    </plurals>
+
+    <!-- Feedback form -->
+
+    <!-- Title of the feedback form. -->
+    <string name="feedbackthread_form_title">Feedback</string>
+    <!-- Heading above the feedback form's kind choice (Request / Bug). -->
+    <string name="feedbackthread_form_prompt">What would you like to share?</string>
+    <!-- Label of the feedback form's single-line title field. -->
+    <string name="feedbackthread_form_title_label">Short title</string>
+    <!-- Label of the feedback form's multi-line description field. -->
+    <string name="feedbackthread_form_details_label">Details</string>
+    <!-- Button that sends the feedback form. -->
+    <string name="feedbackthread_form_send">Send feedback</string>
+    <!-- Error shown when the feedback could not be sent and the error carries no text of its own. -->
+    <string name="feedbackthread_form_send_failed_fallback">Feedback could not be sent.</string>
+    <!-- Confirmation title after a feature request was sent: it goes to moderation first. -->
+    <string name="feedbackthread_form_sent_request_title">Request submitted for review</string>
+    <!-- Confirmation message after a feature request was sent. -->
+    <string name="feedbackthread_form_sent_request_message">It will appear in the feature list after it is approved.</string>
+    <!-- Confirmation title after a bug report was sent. -->
+    <string name="feedbackthread_form_sent_feedback_title">Feedback sent</string>
+    <!-- Confirmation message after a bug report was sent. -->
+    <string name="feedbackthread_form_sent_feedback_message">Thank you for helping us improve the app.</string>
+    <!-- Feedback kind: a feature request. A choice on the feedback form. -->
+    <string name="feedbackthread_kind_request">Request</string>
+    <!-- Feedback kind: a bug report. A choice on the feedback form and the tag on a bug shown on the board. -->
+    <string name="feedbackthread_kind_bug">Bug</string>
+    <!-- Feedback kind: an app-store review. Not offered on the feedback form today. -->
+    <string name="feedbackthread_kind_review">Review</string>
+
+    <!-- My requests -->
+
+    <!-- Title of the screen listing the user's own requests; also the screen-reader name of the board's button that opens it. -->
+    <string name="feedbackthread_my_requests_title">My requests</string>
+    <!-- Shown while My requests loads for the first time. -->
+    <string name="feedbackthread_my_requests_loading">Loading your requests…</string>
+    <!-- Title shown when My requests could not load. -->
+    <string name="feedbackthread_my_requests_load_failed_title">Couldn’t load your requests</string>
+    <!-- Message shown when My requests could not load and the error carries no text of its own. -->
+    <string name="feedbackthread_my_requests_load_failed_fallback">Your requests could not be loaded.</string>
+    <!-- Title of My requests when the user has submitted nothing yet. -->
+    <string name="feedbackthread_my_requests_empty_title">No requests yet</string>
+    <!-- Message under the empty My requests title. -->
+    <string name="feedbackthread_my_requests_empty_message">Anything you submit shows up here, including while it\'s waiting for review.</string>
+    <!-- My requests section header: requests not moderated yet. -->
+    <string name="feedbackthread_my_requests_section_waiting_for_review">Waiting for review</string>
+    <!-- My requests section header: requests accepted and not shipped yet. -->
+    <string name="feedbackthread_my_requests_section_in_progress">In progress</string>
+    <!-- My requests section header: requests that shipped (a plural qualifying "requests"). -->
+    <string name="feedbackthread_my_requests_section_shipped">Shipped</string>
+    <!-- My requests section header: requests declined during moderation (a plural qualifying "requests"). -->
+    <string name="feedbackthread_my_requests_section_closed">Closed</string>
+
+    <!-- Conversations: private replies and public comments on a request -->
+
+    <!-- Shown by the conversation host while it prepares the user's secure session. -->
+    <string name="feedbackthread_conversation_connecting">Connecting to your feedback…</string>
+    <!-- Bar at the bottom of the app that opens the first conversation with unread messages. %1$d is the number of unread messages. -->
+    <plurals name="feedbackthread_conversation_new_messages">
+        <item quantity="one">New message (%1$d)</item>
+        <item quantity="other">New message (%1$d)</item>
+    </plurals>
+    <!-- Error shown by the conversation host when a live update could not be loaded. -->
+    <string name="feedbackthread_conversation_refresh_failed">Could not refresh conversations.</string>
+    <!-- Error shown by the conversation host when it could not connect to the conversation service. -->
+    <string name="feedbackthread_conversation_connect_failed">Could not connect to conversations.</string>
+    <!-- Error shown when a conversation's messages could not be loaded. -->
+    <string name="feedbackthread_conversation_load_failed">Could not load this conversation.</string>
+    <!-- Error shown when sending, removing, following or loading earlier messages failed. -->
+    <string name="feedbackthread_conversation_action_failed">Could not complete this action. Try again.</string>
+    <!-- Label of the message field in a private conversation with the app developer. -->
+    <string name="feedbackthread_conversation_private_placeholder">Write a private reply</string>
+    <!-- Label of the message field in a request's public comments. -->
+    <string name="feedbackthread_conversation_public_placeholder">Write a public comment</string>
+    <!-- Send button while a message is being sent. -->
+    <string name="feedbackthread_conversation_sending">Sending…</string>
+    <!-- Send button in a private conversation. -->
+    <string name="feedbackthread_conversation_send_reply">Send reply</string>
+    <!-- Send button in a request's public comments. -->
+    <string name="feedbackthread_conversation_post_comment">Post comment</string>
+    <!-- Shown instead of the public comments when the app has turned them off. -->
+    <string name="feedbackthread_conversation_public_disabled">Public comments are disabled for this app.</string>
+    <!-- Notice at the top of a private conversation. -->
+    <string name="feedbackthread_conversation_private_notice">Only you and the app developer can see these replies.</string>
+    <!-- Notice at the top of a request's public comments. -->
+    <string name="feedbackthread_conversation_public_notice">Everyone using this app can see these comments.</string>
+    <!-- Button that stops notifications for a conversation the user follows. -->
+    <string name="feedbackthread_conversation_mute">Mute notifications</string>
+    <!-- Button that turns on notifications for a conversation. -->
+    <string name="feedbackthread_conversation_follow">Notify me</string>
+    <!-- Button that loads older messages of a conversation. -->
+    <string name="feedbackthread_conversation_load_earlier">Load earlier messages</string>
+    <!-- Shown while a conversation's messages load. -->
+    <string name="feedbackthread_conversation_loading">Loading…</string>
+    <!-- Shown in a conversation that has no message yet. -->
+    <string name="feedbackthread_conversation_empty">No messages yet.</string>
+    <!-- Author name above the user's own messages. -->
+    <string name="feedbackthread_conversation_author_you">You</string>
+    <!-- Author name above the app developer's messages. -->
+    <string name="feedbackthread_conversation_author_developer">Developer</string>
+    <!-- Author name above another app user's public comment. -->
+    <string name="feedbackthread_conversation_author_app_user">App user</string>
+    <!-- Shown in place of a message its author removed. -->
+    <string name="feedbackthread_conversation_message_removed">Message removed</string>
+    <!-- Under the user's own message: the other side has read it. -->
+    <string name="feedbackthread_conversation_read">Read</string>
+    <!-- Under the user's own message: sent, not read yet. -->
+    <string name="feedbackthread_conversation_posted">Posted</string>
+    <!-- Button under the user's own message that removes it. -->
+    <string name="feedbackthread_conversation_remove_message">Remove message</string>
+    <!-- Title of the dialog that confirms removing a message. -->
+    <string name="feedbackthread_conversation_remove_title">Remove message?</string>
+    <!-- Body of the dialog that confirms removing a message. -->
+    <string name="feedbackthread_conversation_remove_body">The conversation will show that this message was removed.</string>
+    <!-- Confirm button of the dialog that removes a message. -->
+    <string name="feedbackthread_conversation_remove_confirm">Remove</string>
+
+    <!-- Errors the SDK writes itself, shown to end users on the drop-in screens. FeedbackThread is the service's name. -->
+
+    <!-- The device could not reach the FeedbackThread service (no connection, timeout). -->
+    <string name="feedbackthread_error_unreachable">Could not reach FeedbackThread.</string>
+    <!-- The FeedbackThread service answered with data the SDK could not read. -->
+    <string name="feedbackthread_error_unreadable_response">FeedbackThread returned an unreadable response.</string>
+    <!-- The FeedbackThread service answered with conversation settings the SDK could not read. -->
+    <string name="feedbackthread_error_unreadable_conversation_settings">FeedbackThread returned unreadable conversation settings.</string>
+    <!-- The FeedbackThread service failed without an error message. %1$d is the HTTP status code, e.g. 503. -->
+    <string name="feedbackthread_error_http_status">FeedbackThread returned HTTP %1$d.</string>
+</resources>

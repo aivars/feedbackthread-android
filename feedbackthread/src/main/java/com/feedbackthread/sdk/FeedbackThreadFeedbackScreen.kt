@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -42,7 +43,7 @@ private sealed interface SubmissionPhase {
     data object Editing : SubmissionPhase
     data object Submitting : SubmissionPhase
     data object Sent : SubmissionPhase
-    data class Failed(val message: String) : SubmissionPhase
+    data class Failed(val message: FeedbackThreadText) : SubmissionPhase
 }
 
 /**
@@ -79,10 +80,10 @@ public fun FeedbackThreadFeedbackScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Feedback") },
+                title = { Text(stringResource(R.string.feedbackthread_form_title)) },
                 navigationIcon = {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.feedbackthread_cancel))
                     }
                 },
             )
@@ -98,21 +99,25 @@ public fun FeedbackThreadFeedbackScreen(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Text(
-                    if (kind == FeedbackThreadFeedbackKind.REQUEST) "Request submitted for review" else "Feedback sent",
+                    if (kind == FeedbackThreadFeedbackKind.REQUEST) {
+                        stringResource(R.string.feedbackthread_form_sent_request_title)
+                    } else {
+                        stringResource(R.string.feedbackthread_form_sent_feedback_title)
+                    },
                     style = MaterialTheme.typography.headlineSmall,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     if (kind == FeedbackThreadFeedbackKind.REQUEST) {
-                        "It will appear in the feature list after it is approved."
+                        stringResource(R.string.feedbackthread_form_sent_request_message)
                     } else {
-                        "Thank you for helping us improve the app."
+                        stringResource(R.string.feedbackthread_form_sent_feedback_message)
                     },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(24.dp))
                 Button(onClick = onDismiss) {
-                    Text("Done")
+                    Text(stringResource(R.string.feedbackthread_done))
                 }
             }
         } else {
@@ -124,7 +129,7 @@ public fun FeedbackThreadFeedbackScreen(
                     .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text("What would you like to share?", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.feedbackthread_form_prompt), style = MaterialTheme.typography.titleMedium)
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -137,7 +142,7 @@ public fun FeedbackThreadFeedbackScreen(
                                 kind = option
                                 resubmissionKey.contentChanged()
                             },
-                            label = { Text(option.title) },
+                            label = { Text(stringResource(option.localizedTitle)) },
                         )
                     }
                 }
@@ -149,7 +154,7 @@ public fun FeedbackThreadFeedbackScreen(
                         resubmissionKey.contentChanged()
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Short title") },
+                    label = { Text(stringResource(R.string.feedbackthread_form_title_label)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.Sentences,
@@ -165,7 +170,7 @@ public fun FeedbackThreadFeedbackScreen(
                         resubmissionKey.contentChanged()
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Details") },
+                    label = { Text(stringResource(R.string.feedbackthread_form_details_label)) },
                     minLines = 5,
                     maxLines = 10,
                     keyboardOptions = KeyboardOptions(
@@ -176,7 +181,7 @@ public fun FeedbackThreadFeedbackScreen(
 
                 if (phase is SubmissionPhase.Failed) {
                     Text(
-                        text = (phase as SubmissionPhase.Failed).message,
+                        text = (phase as SubmissionPhase.Failed).message.resolve(),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -208,7 +213,9 @@ public fun FeedbackThreadFeedbackScreen(
                             } catch (error: CancellationException) {
                                 throw error
                             } catch (error: Exception) {
-                                phase = SubmissionPhase.Failed(error.message ?: "Feedback could not be sent.")
+                                phase = SubmissionPhase.Failed(
+                                    error.feedbackThreadDisplayText(R.string.feedbackthread_form_send_failed_fallback),
+                                )
                             }
                         }
                     },
@@ -221,7 +228,7 @@ public fun FeedbackThreadFeedbackScreen(
                             strokeWidth = 2.dp,
                         )
                     } else {
-                        Text("Send feedback")
+                        Text(stringResource(R.string.feedbackthread_form_send))
                     }
                 }
             }

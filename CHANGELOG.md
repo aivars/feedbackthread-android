@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+The drop-in Compose screens are localized, and ship in English and Italian.
+
+- Every end-user string of the board, the feedback form, My requests and the conversation screens is now a string resource of the library: `values/strings.xml` (English, the default) and a complete `values-it/strings.xml`. The screens follow the host app's locale, per-app language included, and fall back to English for any other language. Every name is prefixed `feedbackthread_`, so it can't collide with the host app's own resources. Adding a language is one new `values-xx/strings.xml`; a unit test fails on a string left untranslated, or on a translation whose placeholders drift from the English.
+- **No public API change.** `FeedbackThreadFeedbackKind.title` still returns its English `String`; the screens use an internal localized accessor beside it. Exception messages stay English and unchanged, for the integrators who read and log them: the copy the SDK itself writes for end users (service unreachable, unreadable response, the HTTP-status fallback) is tagged internally, and the drop-in screens show it localized. `FeedbackThreadConversationState.error` keeps its English values; `FeedbackThreadConversationHost` shows them localized.
+- Shown as written, on purpose: request titles and descriptions, error messages written by the API, statuses the SDK doesn't recognize, and `FeedbackThreadException.InvalidConfiguration` messages, which address the integrator.
+- Wire values are deliberately untouched: the request statuses matched from the API (`"Submitted"`, `"In review"`, `"Ready to release"`, …), serialized names, URL paths, headers and the persisted anonymous voter-identity key stay exactly as they were, even where a label reads the same.
+- Two English changes. The board's empty filter states are one whole sentence per filter instead of a lowercased status interpolated into `"No … requests"`, which no other language can inflect: "No requests in review" and "No requests in progress" replace "No in review requests" and "No in progress requests" (the other filters read as before). And the vote button's screen-reader description is a proper plural: "Vote, 1 vote" instead of "Vote, 1 votes".
+
 ## 0.5.0 — 2026-09-15
 
 - Add secure guest conversations and Compose reply/comment screens with foreground live updates, pagination, read markers, follow/mute and removal.

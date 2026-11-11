@@ -1,5 +1,6 @@
 package com.feedbackthread.sdk
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -40,7 +42,7 @@ import kotlinx.coroutines.launch
 private sealed interface MyRequestsLoadPhase {
     data object Loading : MyRequestsLoadPhase
     data object Loaded : MyRequestsLoadPhase
-    data class Failed(val message: String) : MyRequestsLoadPhase
+    data class Failed(val message: FeedbackThreadText) : MyRequestsLoadPhase
 }
 
 /**
@@ -97,7 +99,9 @@ public fun FeedbackThreadMyRequestsScreen(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            phase = MyRequestsLoadPhase.Failed(error.message ?: "Your requests could not be loaded.")
+            phase = MyRequestsLoadPhase.Failed(
+                error.feedbackThreadDisplayText(R.string.feedbackthread_my_requests_load_failed_fallback),
+            )
         }
     }
 
@@ -122,15 +126,15 @@ public fun FeedbackThreadMyRequestsScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("My requests") },
-                navigationIcon = { TextButton(onClick = onDismiss) { Text("Done") } },
+                title = { Text(stringResource(R.string.feedbackthread_my_requests_title)) },
+                navigationIcon = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.feedbackthread_done)) } },
             )
         },
     ) { contentPadding ->
         when {
             phase is MyRequestsLoadPhase.Loading && myRequests.isEmpty() -> {
                 MyRequestsMessage(
-                    title = "Loading your requests…",
+                    title = stringResource(R.string.feedbackthread_my_requests_loading),
                     showProgress = true,
                     modifier = Modifier.padding(contentPadding),
                 )
@@ -138,9 +142,9 @@ public fun FeedbackThreadMyRequestsScreen(
 
             phase is MyRequestsLoadPhase.Failed && myRequests.isEmpty() -> {
                 MyRequestsMessage(
-                    title = "Couldn’t load your requests",
-                    message = (phase as MyRequestsLoadPhase.Failed).message,
-                    actionTitle = "Try again",
+                    title = stringResource(R.string.feedbackthread_my_requests_load_failed_title),
+                    message = (phase as MyRequestsLoadPhase.Failed).message.resolve(),
+                    actionTitle = stringResource(R.string.feedbackthread_try_again),
                     onAction = { scope.launch { load() } },
                     modifier = Modifier.padding(contentPadding),
                 )
@@ -148,18 +152,18 @@ public fun FeedbackThreadMyRequestsScreen(
 
             myRequests.isEmpty() -> {
                 MyRequestsMessage(
-                    title = "No requests yet",
-                    message = "Anything you submit shows up here, including while it's waiting for review.",
+                    title = stringResource(R.string.feedbackthread_my_requests_empty_title),
+                    message = stringResource(R.string.feedbackthread_my_requests_empty_message),
                     modifier = Modifier.padding(contentPadding),
                 )
             }
 
             else -> {
                 LazyColumn(modifier = Modifier.padding(contentPadding)) {
-                    myRequestsSection("Waiting for review", pendingReview)
-                    myRequestsSection("In progress", inProgress)
-                    myRequestsSection("Shipped", shipped)
-                    myRequestsSection("Closed", closed)
+                    myRequestsSection(R.string.feedbackthread_my_requests_section_waiting_for_review, pendingReview)
+                    myRequestsSection(R.string.feedbackthread_my_requests_section_in_progress, inProgress)
+                    myRequestsSection(R.string.feedbackthread_my_requests_section_shipped, shipped)
+                    myRequestsSection(R.string.feedbackthread_my_requests_section_closed, closed)
                 }
             }
         }
@@ -167,13 +171,13 @@ public fun FeedbackThreadMyRequestsScreen(
 }
 
 private fun LazyListScope.myRequestsSection(
-    title: String,
+    @StringRes title: Int,
     entries: List<FeedbackThreadMyRequest>,
 ) {
     if (entries.isEmpty()) return
     item {
         Text(
-            text = title,
+            text = stringResource(title),
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
@@ -196,7 +200,7 @@ private fun MyRequestRow(request: FeedbackThreadMyRequest) {
     ) {
         val conversations = LocalFeedbackThreadConversations.current
         if (request.conversationAvailable && conversations != null) {
-            TextButton(onClick = { conversations.open(FeedbackThreadConversationRoute(request.id, "private")) }) { Text("Replies") }
+            TextButton(onClick = { conversations.open(FeedbackThreadConversationRoute(request.id, "private")) }) { Text(stringResource(R.string.feedbackthread_replies)) }
         }
         Text(
             text = request.title,
@@ -225,7 +229,7 @@ private fun MyRequestStatusBadge(status: String) {
         is FeedbackThreadRequestStage.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Text(
-        text = status.feedbackThreadRequestLabel(),
+        text = status.feedbackThreadRequestLabel().resolve(),
         modifier = Modifier
             .background(statusColor.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
             .padding(horizontal = 8.dp, vertical = 3.dp),
@@ -238,7 +242,7 @@ private fun MyRequestStatusBadge(status: String) {
 private fun ShippedInVersionBadge(version: String) {
     val shippedColor = Color(0xFF2E7D32)
     Text(
-        text = "✓ Shipped in $version",
+        text = stringResource(R.string.feedbackthread_shipped_in, version),
         modifier = Modifier
             .background(shippedColor.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
             .padding(horizontal = 8.dp, vertical = 3.dp),

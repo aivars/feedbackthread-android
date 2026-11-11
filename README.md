@@ -138,6 +138,20 @@ The client exposes all three calls directly if you're building custom UI: `myReq
 
 The Compose screens are optional. `FeedbackThreadClient` exposes `submit(...)`, `requests(...)`, and `setVote(...)` for custom UI, with configurable connect/read timeouts and base-URL validation.
 
+## Localization
+
+The drop-in screens ship in **English and Italian** and follow your app's language automatically — the device's, or the per-app language your users pick — with nothing to configure. A language the SDK doesn't carry falls back to English.
+
+All SDK-authored user-facing text lives in the library's string resources, `feedbackthread/src/main/res/values/strings.xml` (English) and `values-it/strings.xml`. Adding a language is a pull request with one new `values-xx/strings.xml` and nothing else; a unit test fails if any string is left untranslated or if a translation's placeholders don't match the English ones. Every name is prefixed `feedbackthread_`, so the SDK's strings never collide with your app's.
+
+Some text stays as it is on purpose:
+
+- **Server-supplied text** — request titles and descriptions, error messages from the API, and any request status the SDK doesn't recognize are shown exactly as received.
+- **Configuration errors** — `FeedbackThreadException.InvalidConfiguration` messages are addressed to you while you wire the SDK up, not to your users.
+- **Exception messages** — the messages the SDK writes on `FeedbackThreadException` stay English for your logs; the drop-in screens show their own localized copy of them.
+
+`FeedbackThreadFeedbackKind.title` and `FeedbackThreadConversationState.error` remain plain English `String`s, unchanged, for custom UI that already renders them.
+
 ## Development
 
 ```sh
@@ -236,5 +250,5 @@ while retaining that old object. Never reuse its client after logout.
 
 Public comments default off. Disabling them hides existing discussion without
 deleting it. Private replies remain enabled. Image uploads are deferred and have
-no SDK or server implementation in this change. New Compose conversation copy is
-English, matching the current Android SDK; localization remains a release check.
+no SDK or server implementation in this change. The conversation screens are
+localized with the rest of the drop-in UI (see [Localization](#localization)).

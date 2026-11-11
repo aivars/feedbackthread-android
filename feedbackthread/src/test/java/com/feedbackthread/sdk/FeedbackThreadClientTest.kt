@@ -1,9 +1,13 @@
 package com.feedbackthread.sdk
 
+import com.feedbackthread.sdk.FeedbackThreadStringResources.english
+import com.feedbackthread.sdk.FeedbackThreadStringResources.italian
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.net.ConnectException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
@@ -451,6 +455,134 @@ public class FeedbackThreadClientTest {
         }
     }
 
+    // Error copy: the exception message integrators read stays English and
+    // unchanged; the drop-in screens show the copy the SDK authored in the
+    // user's language, and anything else as written.
+
+    @Test
+    public fun tagsAnUnreadableResponseFromEveryCallWithItsEndUserCopy(): Unit = runBlocking {
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url -> FakeHttpURLConnection(url, 200, "{}") },
+        )
+        val calls = listOf<suspend () -> Unit>(
+            { client.submit(FeedbackThreadFeedbackSubmission(FeedbackThreadFeedbackKind.BUG, "Crash", "It crashed.")) },
+            { client.requests("user-123") },
+            { client.setVote("FDBK-request", true, "user-123") },
+            { client.myRequests("user-123") },
+            { client.myUpdates("user-123") },
+            { client.acknowledgeUpdates(listOf("FDBK-shipped"), "user-123") },
+        )
+
+        for (call in calls) {
+            val error = expectFailure(FeedbackThreadException.InvalidResponse::class.java) { call() }
+            assertEquals("FeedbackThread returned an unreadable response.", error.message)
+            val text = error.feedbackThreadDisplayText(R.string.feedbackthread_board_load_failed_fallback)
+            assertEquals(FeedbackThreadText.Resource(R.string.feedbackthread_error_unreadable_response), text)
+            assertEquals(error.message, english.render(text))
+            assertEquals("FeedbackThread ha restituito una risposta illeggibile.", italian.render(text))
+        }
+    }
+
+    @Test
+    public fun tagsUnreadableConversationSettingsWithTheirEndUserCopy(): Unit = runBlocking {
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration(projectKey = "project-key"),
+            connectionFactory = { url -> FakeHttpURLConnection(url, 200, """{"privateRepliesEnabled":true}""") },
+        )
+
+        val error = expectFailure(FeedbackThreadException.InvalidResponse::class.java) { client.conversationSettings() }
+
+        assertEquals("FeedbackThread returned unreadable conversation settings.", error.message)
+        val text = error.feedbackThreadDisplayText(R.string.feedbackthread_board_load_failed_fallback)
+        assertEquals(FeedbackThreadText.Resource(R.string.feedbackthread_error_unreadable_conversation_settings), text)
+        assertEquals(error.message, english.render(text))
+    }
+
+    @Test
+    public fun tagsTheHttpStatusFallbackWithItsEndUserCopyAndCode(): Unit = runBlocking {
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url -> FakeHttpURLConnection(url, 502, "<html>Bad gateway</html>") },
+        )
+        // submit reads its own response; every other call shares one reader.
+        val calls = listOf<suspend () -> Unit>(
+            { client.submit(FeedbackThreadFeedbackSubmission(FeedbackThreadFeedbackKind.BUG, "Crash", "It crashed.")) },
+            { client.requests("user-123") },
+        )
+
+        for (call in calls) {
+            val error = expectFailure(FeedbackThreadException.Server::class.java) { call() }
+            assertEquals(502, error.statusCode)
+            assertEquals("FeedbackThread returned HTTP 502.", error.message)
+            val text = error.feedbackThreadDisplayText(R.string.feedbackthread_board_load_failed_fallback)
+            assertEquals(FeedbackThreadText.Resource(R.string.feedbackthread_error_http_status, listOf(502)), text)
+            assertEquals(error.message, english.render(text))
+            assertEquals("FeedbackThread ha restituito il codice HTTP 502.", italian.render(text))
+        }
+    }
+
+    @Test
+    public fun showsAServerProvidedMessageVerbatim(): Unit = runBlocking {
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url ->
+                FakeHttpURLConnection(url, 404, """{"error":{"code":"not_found","message":"Project was not found."}}""")
+            },
+        )
+        val calls = listOf<suspend () -> Unit>(
+            { client.submit(FeedbackThreadFeedbackSubmission(FeedbackThreadFeedbackKind.BUG, "Crash", "It crashed.")) },
+            { client.requests("user-123") },
+        )
+
+        for (call in calls) {
+            val error = expectFailure(FeedbackThreadException.Server::class.java) { call() }
+            assertEquals("Project was not found.", error.message)
+            assertNull(error.userMessage)
+            assertEquals(
+                FeedbackThreadText.Verbatim("Project was not found."),
+                error.feedbackThreadDisplayText(R.string.feedbackthread_board_load_failed_fallback),
+            )
+        }
+    }
+
+    @Test
+    public fun tagsAnUnreachableServiceOnSubmitWithItsEndUserCopy(): Unit = runBlocking {
+        val client = FeedbackThreadClient(
+            configuration = FeedbackThreadConfiguration("https://example.com", "project-key", "android"),
+            connectionFactory = { url -> UnreachableHttpURLConnection(url) },
+        )
+
+        val error = expectFailure(FeedbackThreadException.InvalidResponse::class.java) {
+            client.submit(FeedbackThreadFeedbackSubmission(FeedbackThreadFeedbackKind.BUG, "Crash", "It crashed."))
+        }
+
+        assertEquals("Could not reach FeedbackThread.", error.message)
+        assertTrue(error.cause is IOException)
+        val text = error.feedbackThreadDisplayText(R.string.feedbackthread_form_send_failed_fallback)
+        assertEquals(FeedbackThreadText.Resource(R.string.feedbackthread_error_unreachable), text)
+        assertEquals(error.message, english.render(text))
+        assertEquals("Impossibile raggiungere FeedbackThread.", italian.render(text))
+    }
+
+    @Test
+    public fun showsAnInvalidConfigurationMessageVerbatimInEnglish(): Unit = runBlocking {
+        val client = FeedbackThreadClient(
+            FeedbackThreadConfiguration("https://example.com", "  ", "android"),
+        )
+
+        val error = expectFailure(FeedbackThreadException.InvalidConfiguration::class.java) {
+            client.submit(FeedbackThreadFeedbackSubmission(FeedbackThreadFeedbackKind.BUG, "Crash", "It crashed."))
+        }
+
+        assertEquals("A FeedbackThread project key is required.", error.message)
+        assertNull(error.userMessage)
+        assertEquals(
+            FeedbackThreadText.Verbatim("A FeedbackThread project key is required."),
+            error.feedbackThreadDisplayText(R.string.feedbackthread_form_send_failed_fallback),
+        )
+    }
+
     @Test
     public fun submitsThroughLiveStagingWhenConfigured(): Unit = runBlocking {
         val baseURL = System.getenv("FEEDBACKTHREAD_LIVE_BASE_URL")
@@ -477,6 +609,16 @@ public class FeedbackThreadClientTest {
 
         val requests = client.requests("android-live-reader")
         assertTrue(requests.isNotEmpty())
+    }
+
+    private suspend fun <T : Throwable> expectFailure(type: Class<T>, call: suspend () -> Unit): T {
+        try {
+            call()
+        } catch (error: Throwable) {
+            if (type.isInstance(error)) return type.cast(error)!!
+            throw error
+        }
+        throw AssertionError("Expected ${type.simpleName}")
     }
 
     private companion object {
@@ -584,4 +726,13 @@ private class FakeHttpURLConnection(
     override fun getInputStream(): InputStream = ByteArrayInputStream(responseBytes)
     override fun getErrorStream(): InputStream? =
         if (statusCode in 200..299) null else ByteArrayInputStream(responseBytes)
+}
+
+/** A connection whose server can't be reached: every network step fails with an IOException. */
+private class UnreachableHttpURLConnection(url: URL) : HttpURLConnection(url) {
+    override fun connect(): Unit = throw ConnectException("Connection refused")
+    override fun disconnect() = Unit
+    override fun usingProxy(): Boolean = false
+    override fun getOutputStream(): OutputStream = throw ConnectException("Connection refused")
+    override fun getResponseCode(): Int = throw ConnectException("Connection refused")
 }

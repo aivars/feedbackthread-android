@@ -1,5 +1,6 @@
 package com.feedbackthread.sdk
 
+import androidx.annotation.StringRes
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
@@ -32,6 +33,19 @@ public enum class FeedbackThreadFeedbackKind(public val title: String) {
     @SerialName("Reviews")
     REVIEW("Review"),
     ;
+
+    /**
+     * [title] as one of the SDK's string resources, for its own screens.
+     * [title] itself stays the plain English String, so host apps that
+     * already render it keep the exact value they get today.
+     */
+    @get:StringRes
+    internal val localizedTitle: Int
+        get() = when (this) {
+            BUG -> R.string.feedbackthread_kind_bug
+            REQUEST -> R.string.feedbackthread_kind_request
+            REVIEW -> R.string.feedbackthread_kind_review
+        }
 
     public companion object {
         /**
@@ -206,6 +220,16 @@ public data class FeedbackThreadConfiguration(
 }
 
 public sealed class FeedbackThreadException(message: String, cause: Throwable? = null) : Exception(message, cause) {
+    /**
+     * The end-user copy of this error, set where the SDK itself wrote the
+     * message (see [withUserMessage]), so the drop-in screens can show it in
+     * the user's language. [message] stays the English text integrators read
+     * and log. Null for an integrator-facing error or a message the API wrote.
+     * Transient because exceptions are Serializable and the tag is display-only.
+     */
+    @Transient
+    internal var userMessage: FeedbackThreadText.Resource? = null
+
     public class InvalidConfiguration internal constructor(message: String) : FeedbackThreadException(message)
 
     public class InvalidResponse internal constructor(message: String, cause: Throwable? = null) :
@@ -216,6 +240,10 @@ public sealed class FeedbackThreadException(message: String, cause: Throwable? =
         message: String,
     ) : FeedbackThreadException(message)
 }
+
+/** Tags an SDK-authored error with its end-user copy; the message is unchanged. */
+internal fun <T : FeedbackThreadException> T.withUserMessage(@StringRes id: Int, vararg args: Any): T =
+    apply { userMessage = FeedbackThreadText.Resource(id, args.toList()) }
 
 public class FeedbackThreadClient private constructor(
     private val handlers: FeedbackThreadHandlers,
@@ -397,6 +425,7 @@ private class FeedbackThreadHTTPTransport(
                 json.decodeFromString<FeedbackThreadConversationSettings>(body)
             } catch (error: SerializationException) {
                 throw FeedbackThreadException.InvalidResponse("FeedbackThread returned unreadable conversation settings.", error)
+                    .withUserMessage(R.string.feedbackthread_error_unreadable_conversation_settings)
             }
         } finally {
             connection.disconnect()
@@ -439,21 +468,20 @@ private class FeedbackThreadHTTPTransport(
             val responseBody = stream?.bufferedReader(StandardCharsets.UTF_8)?.use { it.readText() }.orEmpty()
 
             if (statusCode !in 200..299) {
-                val message = runCatching {
-                    json.decodeFromString<FeedbackThreadErrorEnvelope>(responseBody).error.message
-                }.getOrNull() ?: "FeedbackThread returned HTTP $statusCode."
-                throw FeedbackThreadException.Server(statusCode, message)
+                throw serverError(statusCode, responseBody)
             }
 
             try {
                 json.decodeFromString<FeedbackThreadFeedbackEnvelope>(responseBody).feedback
             } catch (error: SerializationException) {
                 throw FeedbackThreadException.InvalidResponse("FeedbackThread returned an unreadable response.", error)
+                    .withUserMessage(R.string.feedbackthread_error_unreadable_response)
             }
         } catch (error: FeedbackThreadException) {
             throw error
         } catch (error: IOException) {
             throw FeedbackThreadException.InvalidResponse("Could not reach FeedbackThread.", error)
+                .withUserMessage(R.string.feedbackthread_error_unreachable)
         } finally {
             connection.disconnect()
         }
@@ -472,6 +500,7 @@ private class FeedbackThreadHTTPTransport(
                 json.decodeFromString<FeedbackThreadRequestsEnvelope>(responseBody).requests
             } catch (error: SerializationException) {
                 throw FeedbackThreadException.InvalidResponse("FeedbackThread returned an unreadable response.", error)
+                    .withUserMessage(R.string.feedbackthread_error_unreadable_response)
             }
         } finally {
             connection.disconnect()
@@ -507,6 +536,7 @@ private class FeedbackThreadHTTPTransport(
                 json.decodeFromString<FeedbackThreadVoteResult>(responseBody)
             } catch (error: SerializationException) {
                 throw FeedbackThreadException.InvalidResponse("FeedbackThread returned an unreadable response.", error)
+                    .withUserMessage(R.string.feedbackthread_error_unreadable_response)
             }
         } finally {
             connection.disconnect()
@@ -526,6 +556,7 @@ private class FeedbackThreadHTTPTransport(
                 json.decodeFromString<FeedbackThreadMyRequestsEnvelope>(responseBody).requests
             } catch (error: SerializationException) {
                 throw FeedbackThreadException.InvalidResponse("FeedbackThread returned an unreadable response.", error)
+                    .withUserMessage(R.string.feedbackthread_error_unreadable_response)
             }
         } finally {
             connection.disconnect()
@@ -545,6 +576,7 @@ private class FeedbackThreadHTTPTransport(
                 json.decodeFromString<FeedbackThreadMyUpdatesResult>(responseBody)
             } catch (error: SerializationException) {
                 throw FeedbackThreadException.InvalidResponse("FeedbackThread returned an unreadable response.", error)
+                    .withUserMessage(R.string.feedbackthread_error_unreadable_response)
             }
         } finally {
             connection.disconnect()
@@ -574,6 +606,7 @@ private class FeedbackThreadHTTPTransport(
                 json.decodeFromString<FeedbackThreadAckResult>(responseBody).unreadCount
             } catch (error: SerializationException) {
                 throw FeedbackThreadException.InvalidResponse("FeedbackThread returned an unreadable response.", error)
+                    .withUserMessage(R.string.feedbackthread_error_unreadable_response)
             }
         } finally {
             connection.disconnect()
@@ -593,13 +626,23 @@ private class FeedbackThreadHTTPTransport(
         val stream = if (statusCode in 200..299) connection.inputStream else connection.errorStream
         val responseBody = stream?.bufferedReader(StandardCharsets.UTF_8)?.use { it.readText() }.orEmpty()
         if (statusCode !in 200..299) {
-            val message = runCatching {
-                json.decodeFromString<FeedbackThreadErrorEnvelope>(responseBody).error.message
-            }.getOrNull() ?: "FeedbackThread returned HTTP $statusCode."
-            throw FeedbackThreadException.Server(statusCode, message)
+            throw serverError(statusCode, responseBody)
         }
         configuration.customerSessionProvider?.invoke() // Discard responses after logout.
         return responseBody
+    }
+
+    /**
+     * The API's own error message, passed through as written; when the body
+     * carries none, the SDK's HTTP-status fallback, tagged for the screens.
+     */
+    private fun serverError(statusCode: Int, responseBody: String): FeedbackThreadException.Server {
+        val message = runCatching {
+            json.decodeFromString<FeedbackThreadErrorEnvelope>(responseBody).error.message
+        }.getOrNull()
+            ?: return FeedbackThreadException.Server(statusCode, "FeedbackThread returned HTTP $statusCode.")
+                .withUserMessage(R.string.feedbackthread_error_http_status, statusCode)
+        return FeedbackThreadException.Server(statusCode, message)
     }
 
     private fun normalizedUserId(value: String?): String? = configuration.customerSessionProvider?.invoke()?.externalUserId ?: value?.trim()?.takeIf { it.isNotEmpty() }

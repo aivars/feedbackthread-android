@@ -26,6 +26,14 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        unitTests.all {
+            // The localization tests read src/main/res directly; without this
+            // input, an edited translation would leave the test task up to date.
+            it.inputs.dir("src/main/res")
+        }
+    }
 }
 
 kotlin {

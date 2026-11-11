@@ -2,6 +2,7 @@ package com.feedbackthread.sdk
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -50,6 +51,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -64,15 +67,18 @@ import kotlinx.coroutines.launch
 private sealed interface RequestLoadPhase {
     data object Loading : RequestLoadPhase
     data object Loaded : RequestLoadPhase
-    data class Failed(val message: String) : RequestLoadPhase
+    data class Failed(val message: FeedbackThreadText) : RequestLoadPhase
 }
 
-private enum class RequestFilter(val title: String) {
-    ALL("All"),
-    IN_REVIEW("In review"),
-    PLANNED("Planned"),
-    IN_PROGRESS("In progress"),
-    COMPLETED("Completed");
+// internal (not private) so its copy is unit-testable. The stage filters
+// share the status labels; each filter has its own whole empty-state
+// sentence rather than a status name interpolated into one.
+internal enum class RequestFilter(@StringRes val title: Int, @StringRes val emptyTitle: Int) {
+    ALL(R.string.feedbackthread_filter_all, R.string.feedbackthread_board_empty_filter_all),
+    IN_REVIEW(R.string.feedbackthread_status_in_review, R.string.feedbackthread_board_empty_filter_in_review),
+    PLANNED(R.string.feedbackthread_status_planned, R.string.feedbackthread_board_empty_filter_planned),
+    IN_PROGRESS(R.string.feedbackthread_status_in_progress, R.string.feedbackthread_board_empty_filter_in_progress),
+    COMPLETED(R.string.feedbackthread_status_completed, R.string.feedbackthread_board_empty_filter_completed);
 
     fun includes(status: String): Boolean = when (this) {
         // Unknown statuses are included under "All" rather than dropped, so a
@@ -130,7 +136,7 @@ public fun FeedbackThreadBoard(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                phase = RequestLoadPhase.Failed(error.message ?: "Feature requests could not be loaded.")
+                phase = RequestLoadPhase.Failed(error.feedbackThreadDisplayText(R.string.feedbackthread_board_load_failed_fallback))
             }
         }
     }
@@ -194,7 +200,7 @@ public fun FeedbackThreadBoard(
                     throw error
                 } catch (error: Exception) {
                     phase = RequestLoadPhase.Failed(
-                        error.message ?: "Your vote could not be saved.",
+                        error.feedbackThreadDisplayText(R.string.feedbackthread_board_vote_failed_fallback),
                     )
                 } finally {
                     votingIds = votingIds - request.id
@@ -207,12 +213,20 @@ public fun FeedbackThreadBoard(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(if (selectedRequest == null) "Feature requests" else "Request") },
+                title = {
+                    Text(
+                        if (selectedRequest == null) {
+                            stringResource(R.string.feedbackthread_board_title)
+                        } else {
+                            stringResource(R.string.feedbackthread_board_detail_title)
+                        },
+                    )
+                },
                 navigationIcon = {
                     if (selectedRequest == null) {
-                        TextButton(onClick = onDismiss) { Text("Done") }
+                        TextButton(onClick = onDismiss) { Text(stringResource(R.string.feedbackthread_done)) }
                     } else {
-                        TextButton(onClick = { selectedRequestId = null }) { Text("Back") }
+                        TextButton(onClick = { selectedRequestId = null }) { Text(stringResource(R.string.feedbackthread_back)) }
                     }
                 },
                 actions = {
@@ -225,7 +239,7 @@ public fun FeedbackThreadBoard(
                                     }
                                 },
                             ) {
-                                Icon(Icons.Default.Person, contentDescription = "My requests")
+                                Icon(Icons.Default.Person, contentDescription = stringResource(R.string.feedbackthread_my_requests_title))
                             }
                         }
                     }
@@ -244,7 +258,7 @@ public fun FeedbackThreadBoard(
                             .navigationBarsPadding()
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                     ) {
-                        Text("Suggest a feature")
+                        Text(stringResource(R.string.feedbackthread_board_suggest_feature))
                     }
                 }
             }
@@ -254,14 +268,14 @@ public fun FeedbackThreadBoard(
             FeatureRequestDetail(
                 request = selectedRequest,
                 isVoting = selectedRequest.id in votingIds,
-                errorMessage = (phase as? RequestLoadPhase.Failed)?.message,
+                errorMessage = (phase as? RequestLoadPhase.Failed)?.message?.resolve(),
                 onVote = { toggleVote(selectedRequest) },
                 modifier = Modifier.padding(contentPadding),
             )
         } else when {
             phase is RequestLoadPhase.Loading && requests.isEmpty() -> {
                 RequestMessage(
-                    title = "Loading requests…",
+                    title = stringResource(R.string.feedbackthread_board_loading),
                     showProgress = true,
                     modifier = Modifier.padding(contentPadding),
                 )
@@ -269,9 +283,9 @@ public fun FeedbackThreadBoard(
 
             phase is RequestLoadPhase.Failed && requests.isEmpty() -> {
                 RequestMessage(
-                    title = "Couldn’t load requests",
-                    message = (phase as RequestLoadPhase.Failed).message,
-                    actionTitle = "Try again",
+                    title = stringResource(R.string.feedbackthread_board_load_failed_title),
+                    message = (phase as RequestLoadPhase.Failed).message.resolve(),
+                    actionTitle = stringResource(R.string.feedbackthread_try_again),
                     onAction = { scope.launch { loadRequests() } },
                     modifier = Modifier.padding(contentPadding),
                 )
@@ -279,9 +293,9 @@ public fun FeedbackThreadBoard(
 
             visibleRequests.isEmpty() -> {
                 RequestMessage(
-                    title = "No approved requests yet",
-                    message = "Share an idea and it will appear after review.",
-                    actionTitle = "Add request",
+                    title = stringResource(R.string.feedbackthread_board_empty_title),
+                    message = stringResource(R.string.feedbackthread_board_empty_message),
+                    actionTitle = stringResource(R.string.feedbackthread_board_add_request),
                     onAction = onAddRequest,
                     modifier = Modifier.padding(contentPadding),
                 )
@@ -306,14 +320,20 @@ public fun FeedbackThreadBoard(
                                 selected = selectedFilter == filter,
                                 onClick = { selectedFilter = filter },
                                 label = {
-                                    Text("${filter.title} (${visibleRequests.count { filter.includes(it.status) }})")
+                                    Text(
+                                        stringResource(
+                                            R.string.feedbackthread_filter_chip,
+                                            stringResource(filter.title),
+                                            visibleRequests.count { filter.includes(it.status) },
+                                        ),
+                                    )
                                 },
                             )
                         }
                     }
                     if (phase is RequestLoadPhase.Failed) {
                         Text(
-                            text = (phase as RequestLoadPhase.Failed).message,
+                            text = (phase as RequestLoadPhase.Failed).message.resolve(),
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
@@ -321,8 +341,8 @@ public fun FeedbackThreadBoard(
                     }
                     if (filteredRequests.isEmpty()) {
                         RequestMessage(
-                            title = "No ${selectedFilter.title.lowercase()} requests",
-                            message = "Choose another status to see more requests.",
+                            title = stringResource(selectedFilter.emptyTitle),
+                            message = stringResource(R.string.feedbackthread_board_empty_filter_message),
                             modifier = Modifier.weight(1f),
                         )
                     } else {
@@ -402,7 +422,7 @@ private fun FeatureRequestRow(
 @Composable
 private fun BugKindBadge() {
     Text(
-        text = "Bug",
+        text = stringResource(FeedbackThreadFeedbackKind.BUG.localizedTitle),
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.error,
         modifier = Modifier
@@ -431,7 +451,7 @@ private fun FeatureRequestDetail(
             val conversations = LocalFeedbackThreadConversations.current
             val conversationState = conversations?.state?.collectAsState()?.value
             if (conversationState?.publicCommentsEnabled == true) {
-                TextButton(onClick = { conversations.open(FeedbackThreadConversationRoute(request.id, "public")) }) { Text("Comments") }
+                TextButton(onClick = { conversations.open(FeedbackThreadConversationRoute(request.id, "public")) }) { Text(stringResource(R.string.feedbackthread_comments)) }
             }
             Text(
                 text = request.title,
@@ -494,6 +514,12 @@ private fun FeatureRequestVoteButton(
     isVoting: Boolean,
     onVote: () -> Unit,
 ) {
+    // Resolved here, in composition: the semantics block below runs outside it.
+    val voteDescription = if (isVoted) {
+        pluralStringResource(R.plurals.feedbackthread_remove_vote_description, votes, votes)
+    } else {
+        pluralStringResource(R.plurals.feedbackthread_vote_description, votes, votes)
+    }
     TextButton(
         onClick = onVote,
         enabled = !isVoting,
@@ -501,11 +527,7 @@ private fun FeatureRequestVoteButton(
             .widthIn(min = 64.dp)
             .heightIn(min = 56.dp)
             .semantics {
-                contentDescription = if (isVoted) {
-                    "Remove vote, $votes votes"
-                } else {
-                    "Vote, $votes votes"
-                }
+                contentDescription = voteDescription
             },
     ) {
         if (isVoting) {
@@ -528,7 +550,7 @@ private fun FeatureRequestStatusBadge(status: String) {
         is FeedbackThreadRequestStage.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Text(
-        text = status.feedbackThreadRequestLabel(),
+        text = status.feedbackThreadRequestLabel().resolve(),
         modifier = Modifier
             .background(statusColor.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
             .padding(horizontal = 8.dp, vertical = 3.dp),
@@ -541,7 +563,7 @@ private fun FeatureRequestStatusBadge(status: String) {
 private fun ShippedInVersionBadge(version: String) {
     val shippedColor = Color(0xFF2E7D32)
     Text(
-        text = "✓ Shipped in $version",
+        text = stringResource(R.string.feedbackthread_shipped_in, version),
         modifier = Modifier
             .background(shippedColor.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
             .padding(horizontal = 8.dp, vertical = 3.dp),

@@ -40,6 +40,9 @@ import okhttp3.WebSocketListener
 @Serializable public data class FeedbackThreadConversationHistory(val thread: FeedbackThreadConversationThread, val messages: List<FeedbackThreadConversationMessage>, val unreadCount: Int, val following: Boolean, val hasMore: Boolean, val nextBefore: Long? = null, val otherReadSeq: Long? = null)
 @Serializable public data class FeedbackThreadConversationSummary(val id: String, val feedbackId: String, val audience: String, val title: String, val preview: String, val status: String, val unreadCount: Int, val updatedAt: String)
 @Serializable public data class FeedbackThreadConversationInbox(val conversations: List<FeedbackThreadConversationSummary>, val unreadCount: Int)
+/** The errors [FeedbackThreadConversations] writes to [FeedbackThreadConversationState.error]; the Compose host shows these two localized. */
+internal const val CONVERSATIONS_REFRESH_FAILED = "Could not refresh conversations."
+internal const val CONVERSATIONS_CONNECT_FAILED = "Could not connect to conversations."
 public data class FeedbackThreadConversationState(val inbox: List<FeedbackThreadConversationSummary> = emptyList(), val unreadCount: Int = 0, val publicCommentsEnabled: Boolean = false, val ready: Boolean = false, val revision: Long = 0, val route: FeedbackThreadConversationRoute? = null, val error: String? = null)
 
 /** Back with encrypted platform storage; never use plain preferences for guest tokens. */
@@ -163,9 +166,9 @@ public class FeedbackThreadConversations(
                         override fun onClosed(webSocket: WebSocket,code: Int,reason: String) { ended.complete(Unit) }
                     }); liveSocket=socket
                     val heartbeat=launch { while(isActive) { delay(20_000); socket.send("ping") } }
-                    val updates=launch { for(signal in signals) { try { refresh() } catch(e: CancellationException) { throw e } catch(e: Exception) { mutableState.value=mutableState.value.copy(error="Could not refresh conversations.") } } }
+                    val updates=launch { for(signal in signals) { try { refresh() } catch(e: CancellationException) { throw e } catch(e: Exception) { mutableState.value=mutableState.value.copy(error=CONVERSATIONS_REFRESH_FAILED) } } }
                     try { ended.await(); failures=0 } finally { heartbeat.cancel(); updates.cancel(); signals.close(); socket.cancel() }
-                } catch(e: CancellationException) { throw e } catch(e: Exception) { if(!closed) mutableState.value=mutableState.value.copy(error="Could not connect to conversations.") }
+                } catch(e: CancellationException) { throw e } catch(e: Exception) { if(!closed) mutableState.value=mutableState.value.copy(error=CONVERSATIONS_CONNECT_FAILED) }
                 delay(minOf(30_000L,1000L shl minOf(failures++,5)))
             }
         } finally { liveSocket?.cancel(); http.dispatcher.executorService.shutdown(); http.connectionPool.evictAll() }

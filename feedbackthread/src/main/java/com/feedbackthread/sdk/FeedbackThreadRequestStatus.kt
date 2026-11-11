@@ -39,16 +39,17 @@ internal fun String.feedbackThreadRequestStage(): FeedbackThreadRequestStage = w
 
 /**
  * A user-facing label for the status: the known stage's display name, or the
- * raw status sensibly capitalized when the stage isn't recognized.
+ * raw status sensibly capitalized when the stage isn't recognized - shown
+ * verbatim, since it is the server's value rather than SDK copy.
  */
-internal fun String.feedbackThreadRequestLabel(): String = when (val stage = feedbackThreadRequestStage()) {
-    FeedbackThreadRequestStage.PendingReview -> "Waiting for review"
-    FeedbackThreadRequestStage.InReview -> "In review"
-    FeedbackThreadRequestStage.Planned -> "Planned"
-    FeedbackThreadRequestStage.InProgress -> "In progress"
-    FeedbackThreadRequestStage.Completed -> "Completed"
-    FeedbackThreadRequestStage.Rejected -> "Rejected"
-    is FeedbackThreadRequestStage.Unknown -> stage.rawValue.sensiblyCapitalized()
+internal fun String.feedbackThreadRequestLabel(): FeedbackThreadText = when (val stage = feedbackThreadRequestStage()) {
+    FeedbackThreadRequestStage.PendingReview -> FeedbackThreadText.Resource(R.string.feedbackthread_status_waiting_for_review)
+    FeedbackThreadRequestStage.InReview -> FeedbackThreadText.Resource(R.string.feedbackthread_status_in_review)
+    FeedbackThreadRequestStage.Planned -> FeedbackThreadText.Resource(R.string.feedbackthread_status_planned)
+    FeedbackThreadRequestStage.InProgress -> FeedbackThreadText.Resource(R.string.feedbackthread_status_in_progress)
+    FeedbackThreadRequestStage.Completed -> FeedbackThreadText.Resource(R.string.feedbackthread_status_completed)
+    FeedbackThreadRequestStage.Rejected -> FeedbackThreadText.Resource(R.string.feedbackthread_status_rejected)
+    is FeedbackThreadRequestStage.Unknown -> FeedbackThreadText.Verbatim(stage.rawValue.sensiblyCapitalized())
 }
 
 /**
