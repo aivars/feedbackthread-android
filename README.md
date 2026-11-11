@@ -140,7 +140,7 @@ The Compose screens are optional. `FeedbackThreadClient` exposes `submit(...)`, 
 
 ## Localization
 
-The drop-in screens ship in **English and Italian** and follow your app's language automatically — the device's, or the per-app language your users pick — with nothing to configure. English is the default and the fallback: for any other language, and for any string a translation lacks, the screens show English.
+The drop-in screens ship in **English and Italian** and follow your app's language automatically — the device's, or the per-app language your users pick — with nothing to configure. Android selects the best-matching resources for your app's configured locales and otherwise falls back to the default resources, which the SDK supplies in English. So in a language the SDK doesn't carry, or for a string a translation lacks, the screens show English.
 
 All SDK-authored user-facing text lives in the library's string resources, `feedbackthread/src/main/res/values/strings.xml` (English) and `values-it/strings.xml`. Every name is prefixed `feedbackthread_`, so the SDK's strings never collide with your app's.
 
@@ -160,10 +160,10 @@ Counts — votes, the unread badge, the filter totals — are written with the u
 Resources are merged into your app, and your app's own resource wins over the library's one of the same name. So you need no SDK change to reword a string or ship a language it doesn't carry:
 
 - **Reword a string.** Define the same name in your own resources, e.g. `<string name="feedbackthread_done">Close</string>` in `res/values/strings.xml`. This replaces the English text only: a language the SDK translates (Italian) keeps its own wording until you define the name in that language's folder too, e.g. `res/values-it/strings.xml`.
-- **Add a language.** Create `res/values-xx/strings.xml` in your app with the SDK's `feedbackthread_*` names, copied from the SDK's [`values/strings.xml`](feedbackthread/src/main/res/values/strings.xml), which also carries a translator comment on each one. Any name you leave out falls back to English. Keep every `%1$s` / `%1$d` placeholder, and write plurals with the quantities your language needs.
+- **Add a language.** Create `res/values-xx/strings.xml` in your app with the SDK's `feedbackthread_*` names, copied from the SDK's [`values/strings.xml`](feedbackthread/src/main/res/values/strings.xml), which also carries a translator comment on each one. Leave out every resource marked `translatable="false"` (today only `feedbackthread_platform_name`, the product name "Android"): those are not translated. Any other name you leave out falls back to the default resources, in English. Write plurals with the quantities your language needs.
 - If your app limits the languages it packages (`resourceConfigurations` or `androidResources.localeFilters`), include the new language there; for the per-app language picker on Android 13+, list it in your `locales_config.xml`.
 
-Strings are looked up by name, so after upgrading the SDK check the [changelog](CHANGELOG.md) for renamed or removed strings. To contribute a language for everyone, send a pull request with one new `values-xx/strings.xml`; a unit test fails if a string is left untranslated or if a translation's placeholders don't match the English ones.
+An override must keep the placeholders (`%1$s`, `%1$d`, …) of the string it replaces: a mismatched placeholder can crash at runtime when the screen formats the string. Strings are looked up by name, and the resource names and their formatting contracts are not guaranteed to stay stable, so an override may need updating between SDK releases. To contribute a language for everyone, send a pull request with one new `values-xx/strings.xml`; a unit test fails if a string is left untranslated or if a translation's placeholders don't match the English ones.
 
 ## Development
 
